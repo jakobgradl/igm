@@ -199,6 +199,18 @@ def params_iceflow(parser):
         default=0,
         help="This permits to artifically upper-bound velocities, active if > 0",
     )
+    parser.add_argument(
+        "--iflo_emulate_vert_vel",
+        type=bool,
+        default=False,
+        help="Adds the vertical velocity to the emulator output",
+    )
+    parser.add_argument(
+        "--iflo_h1_regu",
+        type=float,
+        default=1.0,
+        help="weight of regularization cost (h1 semi norm of velocity)",
+    )
 
     # CNN parameters
     parser.add_argument(
@@ -251,6 +263,13 @@ def params_iceflow(parser):
     )
     
     parser.add_argument(
+        "--iflo_cf_cond",
+        type=str2bool,
+        default=False,
+        help="This forces calving front at the border of the domain in the side given in the list",
+    )
+
+    parser.add_argument(
         "--iflo_cf_eswn",
         type=list,
         default=[],
@@ -258,10 +277,38 @@ def params_iceflow(parser):
     )
     
     parser.add_argument(
-        "--iflo_cf_cond",
+        "--iflo_div_cond",
         type=str2bool,
         default=False,
-        help="This forces calving front at the border of the domain in the side given in the list",
+        help="This forces ice divide at the border of the domain in the side given in the list",
+    )
+
+    parser.add_argument(
+        "--iflo_div_eswn",
+        type=list,
+        default=[],
+        help="This forces ice divide at the border of the domain in the side given in the list",
+    )
+    
+    parser.add_argument(
+        "--iflo_div_vel",
+        type=list,
+        default=[10e-3],
+        help="Horizontal boundary velocity enforced at the ice divide normal to the boundary (don't set to zero!)",
+    )
+    
+    parser.add_argument(
+        "--iflo_fslip_cond",
+        type=str2bool,
+        default=False,
+        help="This forces a free slip boundary at the border of the domain in the side given in the list",
+    )
+
+    parser.add_argument(
+        "--iflo_fslip_eswn",
+        type=list,
+        default=[],
+        help="This forces a free slip boundary at the border of the domain in the side given in the list",
     )
     
     parser.add_argument(

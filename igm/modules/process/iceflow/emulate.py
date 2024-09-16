@@ -77,7 +77,10 @@ def initialize_iceflow_emulator(params,state):
         nb_inputs = len(params.iflo_fieldin) + (params.iflo_dim_arrhenius == 3) * (
             params.iflo_Nz - 1
         )
-        nb_outputs = 2 * params.iflo_Nz
+        if params.iflo_emulate_vert_vel:
+            nb_outputs = 3 * params.iflo_Nz
+        else:
+            nb_outputs = 2 * params.iflo_Nz
         # state.iceflow_model = getattr(igm, params.iflo_network)(
         #     params, nb_inputs, nb_outputs
         # )
@@ -143,7 +146,7 @@ def update_iceflow_emulated(params, state):
 
 def update_iceflow_emulator(params, state):
     if (state.it < 0) | (state.it % params.iflo_retrain_emulator_freq == 0):
-        fieldin = [vars(state)[f] for f in params.iflo_fieldin]
+        fieldin_solve = [vars(state)[f] for f in params.iflo_fieldin]
 
 ########################
 
@@ -156,12 +159,15 @@ def update_iceflow_emulator(params, state):
 
 ########################
 
-        XX = fieldin_to_X(params, fieldin)
+        XX_solve = fieldin_to_X(params, fieldin_solve)
+        X_solve = _split_into_patches(XX_solve, params.iflo_retrain_emulator_framesizemax)
 
-        X = _split_into_patches(XX, params.iflo_retrain_emulator_framesizemax)
+        fieldin_energy = [vars(state)[f] for f in (params.iflo_fieldin + ["topg"])]
+        XX_energy = fieldin_to_X(params, fieldin_energy)
+        X_energy = _split_into_patches(XX_energy, params.iflo_retrain_emulator_framesizemax)
         
-        Ny = X.shape[1]
-        Nx = X.shape[2]
+        Ny = X_solve.shape[1]
+        Nx = X_solve.shape[2]
         
         PAD = compute_PAD(params,Nx,Ny)
 
@@ -176,21 +182,37 @@ def update_iceflow_emulator(params, state):
         for epoch in range(nbit):
             cost_emulator = tf.Variable(0.0)
 
-            for i in range(X.shape[0]):
+            for i in range(X_solve.shape[0]):
                 with tf.GradientTape() as t:
 
-                    Y = state.iceflow_model(tf.pad(X[i:i+1, :, :, :], PAD, "CONSTANT"))[:,:Ny,:Nx,:]
+                    Y = state.iceflow_model(tf.pad(X_solve[i:i+1, :, :, :], PAD, "CONSTANT"))[:,:Ny,:Nx,:]
                     
                     if iz>0:
-                        C_shear, C_slid, C_grav, C_float = iceflow_energy_XY(params, X[i : i + 1, iz:-iz, iz:-iz, :], Y[:, iz:-iz, iz:-iz, :])
+                        C_shear, C_slid, C_grav, C_float, C_h1 = iceflow_energy_XY(state, params, X_energy[i : i + 1, iz:-iz, iz:-iz, :], Y[:, iz:-iz, iz:-iz, :])
                     else:
-                        C_shear, C_slid, C_grav, C_float = iceflow_energy_XY(params, X[i : i + 1, :, :, :], Y[:, :, :, :])
- 
-                    COST = tf.reduce_mean(C_shear) + tf.reduce_mean(C_slid) \
-                         + tf.reduce_mean(C_grav)  + tf.reduce_mean(C_float)
+                        C_shear, C_slid, C_grav, C_float, C_h1 = iceflow_energy_XY(state, params, X_energy[i : i + 1, :, :, :], Y[:, :, :, :])
+
+                    # if iz>0:
+                    #     COST_energy, C_h1, C_stabil = iceflow_energy_XY(state, params, X_energy[i : i + 1, iz:-iz, iz:-iz, :], Y[:, iz:-iz, iz:-iz, :])
+                    # else:
+                    #     COST_energy, C_h1 = iceflow_energy_XY(state, params, X_energy[i : i + 1, :, :, :], Y[:, :, :, :])
+
+                    # if iz>0:
+                    #     C_shear, C_slid, C_grav = iceflow_energy_XY(state, params, X_energy[i : i + 1, iz:-iz, iz:-iz, :], Y[:, iz:-iz, iz:-iz, :])
+                    # else:
+                    #     C_shear, C_slid, C_grav = iceflow_energy_XY(state, params, X_energy[i : i + 1, :, :, :], Y[:, :, :, :])
+
+                   
+                    COST_energy = tf.reduce_mean(C_shear) + tf.reduce_mean(C_slid) \
+                        + tf.reduce_mean(C_grav) + tf.reduce_mean(C_float)
+
+                    # COST_regu = params.iflo_h1_regu * C_h1 
                     
-                    if (epoch + 1) % 100 == 0:
+                    COST = COST_energy #+ COST_regu
+                            
+                    if (epoch + 1) % 10 == 0:
                         print("---------- > ", tf.reduce_mean(C_shear).numpy(), tf.reduce_mean(C_slid).numpy(), tf.reduce_mean(C_grav).numpy(), tf.reduce_mean(C_float).numpy())
+                        # print("---------- > ", COST_energy.numpy())
 
 #                    state.C_shear = tf.pad(C_shear[0],[[0,1],[0,1]],"CONSTANT")
 #                    state.C_slid  = tf.pad(C_slid[0],[[0,1],[0,1]],"CONSTANT")
@@ -201,7 +223,7 @@ def update_iceflow_emulator(params, state):
 
                     cost_emulator = cost_emulator + COST
 
-                    if (epoch + 1) % 100 == 0:
+                    if (epoch + 1) % 10 == 0:
                         U, V = Y_to_UV(params, Y)
                         U = U[0]
                         V = V[0]
@@ -276,6 +298,32 @@ def _split_into_patches(X, nbmax):
     sx = nx // nbmax + 1
     ly = int(ny / sy)
     lx = int(nx / sx)
+
+    for i in range(sx):
+        for j in range(sy):
+            XX.append(X[0, j * ly : (j + 1) * ly, i * lx : (i + 1) * lx, :])
+
+    return tf.stack(XX, axis=0)
+
+def _separate_BC_patches(X, nbmax, cf, div):
+    XX = []
+    ny = X.shape[1]
+    nx = X.shape[2]
+    sy = ny // nbmax + 1
+    sx = nx // nbmax + 1
+    ly = int(ny / sy)
+    lx = int(nx / sx)
+
+    where = cf + div
+
+    if 'E' in where:
+        bla
+    elif 'W' in where:
+        bla
+    elif 'S' in where:
+        bla
+    elif 'N' in where:
+        bla
 
     for i in range(sx):
         for j in range(sy):

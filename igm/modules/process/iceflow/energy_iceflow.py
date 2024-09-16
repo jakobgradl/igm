@@ -1,6 +1,7 @@
 import numpy as np 
 import tensorflow as tf 
 from igm.modules.utils import *
+# import igm.modules.process.vert_flow.vert_flow as vf
 
 
 @tf.function(experimental_relax_shapes=True)
@@ -101,17 +102,25 @@ def _stag8(B):
     ) / 8
 
 
-def iceflow_energy(params, U, V, fieldin):
-    thk, usurf, arrhenius, slidingco, dX = fieldin
+def iceflow_energy(params, U, V, fieldin): #*args):
+    # if args.size == 1:
+    #     fieldin = args[0]
+    #     W = 'False'
+    # elif args.size == 2:
+    #     W = args[0]
+    #     fieldin = args[1]
+    thk, usurf, arrhenius, slidingco, dX, topg = fieldin
 
     return _iceflow_energy(
         U,
-        V,
+        V, 
+        # W,
         thk,
         usurf,
         arrhenius,
         slidingco,
         dX,
+        topg,
         params.iflo_Nz,
         params.iflo_vert_spacing,
         params.iflo_exp_glen,
@@ -124,6 +133,8 @@ def iceflow_energy(params, U, V, fieldin):
         params.iflo_new_friction_param,
         params.iflo_cf_cond,
         params.iflo_cf_eswn,
+        params.iflo_div_cond,
+        params.iflo_div_eswn,
         params.iflo_regu,
         params.iflo_min_sr,
         params.iflo_max_sr,
@@ -135,11 +146,13 @@ def iceflow_energy(params, U, V, fieldin):
 def _iceflow_energy(
     U,
     V,
+    # W,
     thk,
     usurf,
     arrhenius,
     slidingco,
     dX,
+    topg,
     Nz,
     vert_spacing,
     exp_glen,
@@ -152,10 +165,13 @@ def _iceflow_energy(
     new_friction_param,
     iflo_cf_cond,
     iflo_cf_eswn,
+    iflo_div_cond,
+    iflo_div_eswn,
     iflo_regu,
     min_sr,
     max_sr,
     iflo_force_negative_gravitational_energy
+    
 ):
     # warning, the energy is here normalized dividing by int_Omega
 
@@ -246,6 +262,7 @@ def _iceflow_energy(
     slopsurfx = tf.expand_dims(slopsurfx, axis=1)
     slopsurfy = tf.expand_dims(slopsurfy, axis=1)
 
+    # if not iflo_cf_cond:
     if Nz > 1:
         uds = _stag8(U) * slopsurfx + _stag8(V) * slopsurfy
     else:
@@ -264,15 +281,157 @@ def _iceflow_energy(
         * tf.reduce_sum(dz * uds, axis=1)
     )
 
+    # elif iflo_cf_cond: ### THIS PRODUCES REASONABLE ENERGY VALUES
+    #     # floating = tf.where(lsurf > topg, 1.0, 0.0)
+    #     # grounded = tf.where(lsurf > topg, 0.0, 1.0)
+
+    #     # floating = tf.expand_dims(_stag4(floating), axis=1)
+    #     # grounded = tf.expand_dims(_stag4(grounded), axis=1)
+
+    #     usurf = tf.expand_dims(_stag4(usurf), axis=1)
+    #     lsurf = tf.expand_dims(_stag4(lsurf), axis=1)
+    #     topg = tf.expand_dims(_stag4(topg), axis=1)
+    #     # thk = tf.expand_dims(_stag4(thk), axis=1)
+
+    #     C_grav_float = tf.zeros_like(_stag8(U))
+    #     C_grav_ground = tf.zeros_like(_stag8(U))
+
+    #     # grounded ice
+    #     if Nz > 1:
+    #         uds = tf.where((topg-lsurf)>1, 0.0, _stag8(U) * slopsurfx + _stag8(V) * slopsurfy)
+    #         # (topg-lsurf)>1 works better than lsurf>topg, probably a float-precision issue
+    #     else:
+    #         uds = tf.where((topg-lsurf)>1, 0.0, _stag4b(U) * slopsurfx + _stag4b(V) * slopsurfy)
+
+    #     if iflo_force_negative_gravitational_energy:
+    #         uds = tf.minimum(uds, 0.0) # force non-postiveness
+
+    #     uds = tf.where(COND, uds, 0.0)
+
+    #     # C_slid is unit Mpa m^-1 m/y m = Mpa m/y
+    #     C_grav_ground = (
+    #         ice_density
+    #         * gravity_cst
+    #         * 10 ** (-6)
+    #         * tf.reduce_sum(dz * uds, axis=1)
+    #         )
+
+    #     # floating ice
+    #     # Cuffey&Patterson, 2010, Eq. 8.110
+    #     if Nz > 1:
+    #         uds = tf.where((topg-lsurf)>1, _stag8(U) * usurf + _stag8(V) * usurf, 0.0)
+    #     else:
+    #         uds = tf.where((topg-lsurf)>1, _stag4b(U) * usurf + _stag4b(V) * usurf, 0.0)
+
+    #     if iflo_force_negative_gravitational_energy:
+    #         uds = tf.minimum(uds, 0.0) # force non-postiveness
+
+    #     uds = tf.where(COND, uds, 0.0)
+
+    #     C_grav_float = (
+    #         0.5
+    #         * ice_density
+    #         * gravity_cst
+    #         * 10 ** (-6)
+    #         * tf.reduce_sum(dz * uds, axis=1)
+    #         )
+        
+    #     C_grav = C_grav_float + C_grav_ground
+
+
+
+
+
+
+    # elif iflo_cf_cond:
+    #     # floating = tf.where(lsurf > topg, 1.0, 0.0)
+    #     # grounded = tf.where(lsurf > topg, 0.0, 1.0)
+
+    #     # floating = tf.expand_dims(_stag4(floating), axis=1)
+    #     # grounded = tf.expand_dims(_stag4(grounded), axis=1)
+
+    #     usurf = tf.expand_dims(_stag4(usurf), axis=1)
+    #     lsurf = tf.expand_dims(_stag4(lsurf), axis=1)
+    #     topg = tf.expand_dims(_stag4(topg), axis=1)
+    #     thk = tf.expand_dims(_stag4(thk), axis=1)
+
+    #     C_grav_float = tf.zeros_like(_stag8(U))
+    #     C_grav_ground = tf.zeros_like(_stag8(U))
+
+    #     # grounded ice
+    #     if Nz > 1:
+    #         uds = tf.where(lsurf<0, 0.0, _stag8(U) * slopsurfx + _stag8(V) * slopsurfy)
+    #         # (topg-lsurf)>1 works better than lsurf>topg, probably a float-precision issue
+    #     else:
+    #         uds = tf.where(lsurf<0, 0.0, _stag4b(U) * slopsurfx + _stag4b(V) * slopsurfy)
+
+    #     if iflo_force_negative_gravitational_energy:
+    #         uds = tf.minimum(uds, 0.0) # force non-postiveness
+
+    #     uds = tf.where(COND, uds, 0.0)
+
+    #     # C_slid is unit Mpa m^-1 m/y m = Mpa m/y
+    #     C_grav_ground = (
+    #         ice_density
+    #         * gravity_cst
+    #         * 10 ** (-6)
+    #         * tf.reduce_sum(dz * uds, axis=1)
+    #         )
+
+    #     # floating ice
+    #     # Cuffey&Patterson, 2010, Eq. 8.110
+    #     if Nz > 1:
+    #         P = tf.where(lsurf<0, 0.5 * 10 ** (-6) * 9.81 * 910 * ( thk**2 - (1000/910)*lsurf**2 ), 0.0)  / dX[:, 0, 0]
+    #     else:
+    #         P = tf.where(lsurf<0, 0.5 * 10 ** (-6) * 9.81 * 910 * ( thk**2 - (1000/910)*lsurf**2 ), 0.0)  / dX[:, 0, 0]
+
+    #     # if iflo_force_negative_gravitational_energy:
+    #     #     uds = tf.minimum(uds, 0.0) # force non-postiveness
+
+    #     # uds = tf.where(COND, uds, 0.0)
+
+    #     C_grav_float = (
+    #         # 0.5
+    #         # * ice_density
+    #         # * gravity_cst
+    #         # * 10 ** (-6)
+    #         # * 
+    #         P * (
+    #         tf.reduce_sum(dz * _stag8(U), axis=1)
+    #         - tf.reduce_sum(dz * _stag8(V), axis=1)
+    #         ))
+
+    #     C_grav = C_grav_float + C_grav_ground
+    
+
+
+
+
     # if activae this applies the stress condition along the calving front
     if iflo_cf_cond:
 
         ################################################################
         
         lsurf = usurf - thk
+
+        density_ratio = 910/1000
+
+        shelf = tf.where(lsurf<0)
+        len_shelf = tf.reduce_sum(dX[:,0,shelf[0,1]:])
+        thk_shelf = tf.ones_like(thk) * thk[0,-1]
+
+        #P = tf.where(lsurf==(-density_ratio*thk), 0.5 * ice_density * gravity_cst * thk * usurf , 0.0)  / dX[:, 0, 0]
+        #shelf = tf.where(lsurf==(-density_ratio*thk), 1.0, 0.0)
+        
         
     #   Check formula (17) in [Jouvet and Graeser 2012], Unit is Mpa 
-        P =tf.where(lsurf<0, 0.5 * 10 ** (-6) * 9.81 * 910 * ( thk**2 - (1000/910)*lsurf**2 ) , 0.0)  / dX[:, 0, 0] 
+
+        # Eq 17, ii)
+        P =tf.where(lsurf<0, 0.5 * 10 ** (-6) * 9.81 * 910 * ( thk**2 - (1000/910)*lsurf**2 ) , 0.0)  / dX[:, 0, 0]
+        # P =tf.where(lsurf<0, 0.5 * 10 ** (-6) * 9.81 * 910 * ( thk**2 - (1000/910)*lsurf**2 ) , 0.0)  / len_shelf
+
+        # Eq 17, iii) 
+        # P =tf.where(lsurf==(-density_ratio*thk), 0.5 * 10 ** (-6) * 9.81 * 910 * thk_shelf**2 * (1 - density_ratio) , 0.0) / len_shelf
         
         if len(iflo_cf_eswn) == 0:
             thkext = tf.pad(thk,[[0,0],[1,1],[1,1]],"CONSTANT",constant_values=1)
@@ -294,16 +453,19 @@ def _iceflow_energy(
         CF_E = tf.where((lsurf<0)&(thk>0)&(thkext[:,1:-1,2:]==0)&(lsurfext[:,1:-1,2:]<=0),1.0,0.0) 
         CF_S = tf.where((lsurf<0)&(thk>0)&(thkext[:,:-2,1:-1]==0)&(lsurfext[:,:-2,1:-1]<=0),1.0,0.0)
         CF_N = tf.where((lsurf<0)&(thk>0)&(thkext[:,2:,1:-1]==0)&(lsurfext[:,2:,1:-1]<=0),1.0,0.0)
+
+        # CF_E = tf.where((lsurf<0)&(thk>0), 1.0, 0.0)
  
         if Nz > 1:
             # Blatter-Pattyn
             weight = tf.stack([tf.ones_like(thk) * z for z in temd], axis=1) # dimensionless, 
             C_float = (
                   P * tf.reduce_sum(weight * _stag2(U), axis=1) * CF_W
-                - P * tf.reduce_sum(weight * _stag2(U), axis=1) * CF_E 
+                - P * tf.reduce_sum(weight * _stag2(U), axis=1) * CF_E #* dX[:, 0, 0]
                 + P * tf.reduce_sum(weight * _stag2(V), axis=1) * CF_S 
                 - P * tf.reduce_sum(weight * _stag2(V), axis=1) * CF_N 
-            ) 
+            )
+            # C_float = (P * tf.reduce_sum(weight * _stag2(U), axis=1) + P * tf.reduce_sum(weight * _stag2(V), axis=1))
         else:
             # SSA
             C_float = ( P * U * CF_W - P * U * CF_E  + P * V * CF_S - P * V * CF_N )  
@@ -323,36 +485,172 @@ def _iceflow_energy(
         #     - tf.reduce_sum(ddz * f * _stag2(V), axis=1) * CF_N 
         # )   # Mpa m / y
         
-        ##########################################################
+    #     ##########################################################
 
-        # f = 10 ** (-6) * ( 910 * 9.81 * thk + 1000 * 9.81 * tf.minimum(0.0, lsurf) ) # Mpa 
+    #     # f = 10 ** (-6) * ( 910 * 9.81 * thk + 1000 * 9.81 * tf.minimum(0.0, lsurf) ) # Mpa 
 
  
-        # sloptopgx, sloptopgy = compute_gradient_tf(lsurf[0], dX[0, 0, 0], dX[0, 0, 0])
-        # slopn = (sloptopgx**2 + sloptopgy**2 + 1.e-10 )**0.5
-        # nx = tf.expand_dims(sloptopgx/slopn,0)
-        # ny = tf.expand_dims(sloptopgy/slopn,0)
+    #     # sloptopgx, sloptopgy = compute_gradient_tf(lsurf[0], dX[0, 0, 0], dX[0, 0, 0])
+    #     # slopn = (sloptopgx**2 + sloptopgy**2 + 1.e-10 )**0.5
+    #     # nx = tf.expand_dims(sloptopgx/slopn,0)
+    #     # ny = tf.expand_dims(sloptopgy/slopn,0)
             
-        # C_float_2 = - tf.where( (thk>0)&(slidingco==0), - f * (U[:,0] * nx + V[:,0] * ny), 0.0 ) # Mpa m/y
+    #     # C_float_2 = - tf.where( (thk>0)&(slidingco==0), - f * (U[:,0] * nx + V[:,0] * ny), 0.0 ) # Mpa m/y
 
-        # #C_float is unit  Mpa m * (m/y) / m + Mpa m / y = Mpa m / y    
-        # C_float = C_float + C_float_2 
+    #     # #C_float is unit  Mpa m * (m/y) / m + Mpa m / y = Mpa m / y    
+    #     # C_float = C_float + C_float_2 
         
     else:
         C_float = tf.zeros_like(C_shear)
 
-    # print(C_shear[0].numpy(),C_slid[0].numpy(),C_grav[0].numpy(),C_float[0].numpy())
 
-    return C_shear, C_slid, C_grav, C_float
+
+    # Regularization of the velocity gradient through H1 semi norm
+    # sqrt( integral( abs(grad(u))^2 )dx )
+    if Nz > 1:
+        gradu = (U[:,:,:,:-1]-U[:,:,:,1:])/dX[:,0,0]
+        gradv = (V[:,:,:-1,:]-V[:,:,1:,:])/dX[:,0,0]
+        grad2u = (gradu[:,:,:,:-1]-gradu[:,:,:,1:])/dX[:,0,0]
+        grad2v = (gradv[:,:,:,:-1]-gradv[:,:,:,1:])/dX[:,0,0]
+        C_h1 = tf.sqrt(tf.reduce_sum(tf.square(grad2u))) + tf.sqrt(tf.reduce_sum(tf.square(grad2v)))
+    else:
+        grad2u = _stag4b(U) + _stag4b(V)
+        C_h1 = tf.sqrt(tf.reduce_sum(tf.square(_stag4b(grad2u))))
+
+
+    # # Regularization of surface velocity change for training stability
+    # # new surface velocities should be within 10% of old velocities
+    # Vel_current = tf.sqrt(tf.square(U_old)+tf.square(V_old))
+    # Vel_new = tf.sqrt(tf.square(U[:,0,:,:])+tf.square(V[:,0,:,:]))
+    # Vel_diff = (Vel_new - Vel_current) / Vel_current
+    # Vel_diff = tf.sqrt(tf.square(Vel_diff))
+    # if tf.reduce_max(Vel_diff) > 0.1:
+    #     C_stabil = 0.1 * Vel_diff
+    # else:
+    #     C_stabil = 0.0
+
+    # Boundary conditions
+
+    # ice divide and no slip BCs
+    # residue = tf.sqrt(tf.reduce_sum(U[:,:,:,0])**2 + tf.reduce_sum(V[:,:,0,:])**2 + tf.reduce_sum(V[:,:,-1,:])**2) * 10**(-6)
+
+    # Calving front BC, force zero vertical velocity
+    # W = _compute_vertical_velocity_incompressibility(Nz, vert_spacing, topg, U[0,:,:,:], V[0,:,:,:], thk, dX)
+    # res_cf = tf.sqrt(tf.reduce_sum(W[:,:,-1])**2) * 10**(-6)
+
+    # COST_energy = (tf.reduce_mean(C_shear) 
+    #                + tf.reduce_mean(C_slid) 
+    #                + tf.reduce_mean(C_grav+(residue/(thk.shape[1]*thk.shape[2]))) 
+    #                + tf.reduce_mean(C_float+(res_cf/thk.shape[1])))
+
+    # return C_shear, C_slid, C_grav+(residue/(thk.shape[1]*thk.shape[2])), C_float+(res_cf/thk.shape[1]), C_h1
+    return C_shear, C_slid, C_grav, C_float, C_h1
+    # return COST_energy, C_h1#, C_stabil
+
+
+
+
 
 
 # @tf.function(experimental_relax_shapes=True)
-def iceflow_energy_XY(params, X, Y):
-    U, V = Y_to_UV(params, Y)
+def iceflow_energy_XY(state, params, X, Y):
+    if params.iflo_emulate_vert_vel:
+        U, V, W = Y_to_UVW(params, Y)
+    else:
+        U, V = Y_to_UV(params, Y)
+
+    # if params.iflo_div_cond: # or params.iflo_cf_cond:
+    #     U, V = _impose_BCs(state, params, U, V)
 
     fieldin = X_to_fieldin(params, X)
 
-    return iceflow_energy(params, U, V, fieldin)
+    if params.iflo_emulate_vert_vel:
+        return iceflow_energy(params, U, V, W, fieldin)
+    else:
+        return iceflow_energy(params, U, V, fieldin)
+    
+
+
+def _compute_vertical_velocity_incompressibility(Nz, vert_space, topg, U, V, thk, dX):
+    # Compute horinzontal derivatives
+    dUdx = (U[:, :, 2:] - U[:, :, :-2]) / (2 * dX[0, 0, 0])
+    dVdy = (V[:, 2:, :] - V[:, :-2, :]) / (2 * dX[0, 0, 0])
+
+    dUdx = tf.pad(dUdx, [[0, 0], [0, 0], [1, 1]], "CONSTANT")
+    dVdy = tf.pad(dVdy, [[0, 0], [1, 1], [0, 0]], "CONSTANT")
+
+    dUdx = (dUdx[1:] + dUdx[:-1]) / 2  # compute between the layers
+    dVdy = (dVdy[1:] + dVdy[:-1]) / 2  # compute between the layers
+
+    # get dVdz from impcrompressibility condition
+    dVdz = -dUdx - dVdy
+
+    # get the basal vertical velocities
+    sloptopgx, sloptopgy = compute_gradient_tf(topg, dX[0, 0, 0], dX[0, 0, 0])
+    wvelbase = U[0] * sloptopgx + V[0] * sloptopgy
+
+    # get the vertical thickness layers
+    zeta = np.arange(Nz) / (Nz - 1)
+    temp = (zeta / vert_space) * (
+        1.0 + (vert_space - 1.0) * zeta
+    )
+    temd = temp[1:] - temp[:-1]
+    dz = tf.stack([thk * z for z in temd], axis=0)
+
+    W = []
+    W.append(wvelbase)
+    for l in range(dVdz.shape[0]):
+        W.append(W[-1] + dVdz[l] * dz[l])
+    W = tf.stack(W)
+
+    return W
+
+
+
+def _impose_BCs(state, params, U, V):
+    # exact boundary conditions
+    # Barschkis, 2023; Sukumar & Srivastava, 2021
+    # Prediction_with_BCs = G + phi * Prediction_without_BCs
+
+    # let's start simple: ice divide at W-boundary with U=0
+    
+    # dist = tf.zeros_like(state.X)
+    # for i in np.arange(state.X.shape[0]):
+    #     dist_new = np.square(state.X - state.X[i,0])
+    #     dist += dist_new
+    # dist = np.sqrt(dist)
+
+    if params.iflo_div_cond:
+        # ice divide boundary, i.e., 
+        BCvel = params.iflo_div_vel # default 10e-3 (1 mm/yr)
+        G_u = tf.zeros_like(state.X) + BCvel
+        exp = 1
+        extent = np.max(state.X)
+        phi = state.X * ((-100.0 / ( state.X + (100.0)**(1/exp) )**exp) + 1.0) # for a boundary in the West
+
+    nU = tf.Variable(tf.ones_like(U)*U)
+    # G = G_cf + G_u
+    for i in np.arange(nU.shape[0]):
+        for j in np.arange(nU.shape[1]):
+            nU[i,j,:,:].assign(phi * nU[i,j,:,:])
+            nU[i,j,:,:].assign(nU[i,j,:,:] + G_u)
+    # V = G_v + phi * V
+
+    if params.iflo_fslip_cond:
+        # free slip boundary, i.e., no flow perpendicular to boundary
+        G_v = 0.0 * tf.ones_like(state.X)
+        exp = 1
+        phi = state.Y * ((-100.0 / ( state.Y + (100.0)**(1/exp) )**exp) + 1.0) # for a boundary in the North and South
+
+    nV = tf.Variable(tf.ones_like(V)*V)
+    # G = G_cf + G_u
+    for i in np.arange(nV.shape[0]):
+        for j in np.arange(nV.shape[1]):
+            nV[i,j,:,:].assign(phi * nV[i,j,:,:])
+            nV[i,j,:,:].assign(nV[i,j,:,:] + G_v)
+    # V = G_v + phi * V
+ 
+    return nU, V
 
 
 def Y_to_UV(params, Y):
@@ -362,6 +660,15 @@ def Y_to_UV(params, Y):
     V = tf.experimental.numpy.moveaxis(Y[:, :, :, N:], [-1], [1])
 
     return U, V
+
+def Y_to_UVW(params, Y):
+    N = params.iflo_Nz
+
+    U = tf.experimental.numpy.moveaxis(Y[:, :, :, :N], [-1], [1])
+    V = tf.experimental.numpy.moveaxis(Y[:, :, :, N:-N], [-1], [1])
+    W = tf.experimental.numpy.moveaxis(Y[:, :, :, -N:], [-1], [1])
+
+    return U, V, W
 
 
 def UV_to_Y(params, U, V):
@@ -381,10 +688,10 @@ def UV_to_Y(params, U, V):
 def fieldin_to_X(params, fieldin):
     X = []
 
-    fieldin_dim = [0, 0, 1 * (params.iflo_dim_arrhenius == 3), 0, 0]
+    fieldin_dim = [0, 0, 1 * (params.iflo_dim_arrhenius == 3), 0, 0, 0]
 
     for f, s in zip(fieldin, fieldin_dim):
-        if s == 0:
+        if s == 0:   
             X.append(tf.expand_dims(f, axis=-1))
         else:
             X.append(tf.experimental.numpy.moveaxis(f, [0], [-1]))
@@ -395,11 +702,12 @@ def fieldin_to_X(params, fieldin):
 def X_to_fieldin(params, X):
     i = 0
 
-    fieldin_dim = [0, 0, 1 * (params.iflo_dim_arrhenius == 3), 0, 0]
+    fieldin_dim = [0, 0, 1 * (params.iflo_dim_arrhenius == 3), 0, 0, 0]
 
     fieldin = []
 
-    for f, s in zip(params.iflo_fieldin, fieldin_dim):
+    # for f, s in zip(params.iflo_fieldin, fieldin_dim):
+    for f, s in zip(np.arange(6), fieldin_dim):
         if s == 0:
             fieldin.append(X[:, :, :, i])
             i += 1

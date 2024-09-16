@@ -54,6 +54,9 @@ def update(params, state):
         state.divflux = compute_divflux_slope_limiter(
             state.ubar, state.vbar, state.thk, state.dx, state.dx, state.dt, slope_type=params.thk_slope_type
         )
+        # state.divflux = compute_divflux_slope_limiter(
+        #     state.U[-1,:,:], state.V[-1,:,:], state.thk, state.dx, state.dx, state.dt, slope_type=params.thk_slope_type
+        # )
 
         # if not smb model is given, set smb to zero
         if not hasattr(state, "smb"):
@@ -61,6 +64,7 @@ def update(params, state):
 
         # Forward Euler with projection to keep ice thickness non-negative
         state.thk = tf.maximum(state.thk + state.dt * (state.smb - state.divflux), 0)
+        # state.thk = tf.maximum(state.thk + state.dt * (state.smb - state.divflux + state.W[-1,:,:]), 0.0)
 
         # define the lower ice surface
         if hasattr(state, "sealevel"):
