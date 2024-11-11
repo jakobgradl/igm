@@ -1,0 +1,76 @@
+{
+    "modules_preproc": ["make_mismip3d_exp1"],
+    "modules_process": [
+                        "iceflow_jakob",
+                        "time",
+                        "thk"
+                       ],
+    "modules_postproc": [
+                         "write_ncdf",
+                         "plot2d_mismip",
+                         "print_info",
+                         "print_comp"
+                        ],
+  
+  
+  
+  
+    "iflo_type": "emulated",
+    "iflo_pretrained_emulator": true,
+    "iflo_emulator": "/home/jgradl/igm/igm/igm-shelf/mismip3d/iceflow-model/m3d_Init_cnn_lrelu_adam_rfreq01_lr5e-3_frame3k",
+  #  "iflo_emulator": "/home/jgradl/igm/igm/igm-shelf/mismip3d/iceflow-model/m3d_Stdn_cnn_lrelu_adam_rfreq01_lr5e-3_frame3k",
+  
+  #  "iflo_init_arrhenius": 10e-25,
+    "iflo_exp_glen": 3,
+    "iflo_exp_weertman": 0.3333333333333333,
+    "iflo_gravity_cst": 9.8,
+    "iflo_ice_density": 900,
+    "iflo_new_friction_param": false,
+  
+    "iflo_save_model":true,
+  #  "iflo_save_model_dir": "iceflow-model/m3d_Init_cnn_lrelu_adam_rfreq01_lr5e-3_frame3k",
+    "iflo_save_model_dir": "iceflow-model/m3d_Stdn_cnn_lrelu_adam_rfreq01_lr5e-3_frame3k",
+    
+    "iflo_Nz" : 10,
+    "iflo_vert_spacing": 3,
+    
+    "iflo_dim_arrhenius": 2,
+    "iflo_retrain_emulator_freq" : 1,
+    "iflo_retrain_emulator_lr" : 0.0005,
+  #  "iflo_retrain_emulator_nbit_init" : 2000,
+    "iflo_retrain_emulator_nbit_init" : 0,
+    "iflo_retrain_emulator_nbit" : 10,
+    "iflo_retrain_emulator_framesizemax": 3000,
+    "iflo_multiple_window_size": 0,
+    "iflo_force_max_velbar": 2000.0,
+    
+    "iflo_network": "cnn",
+    "iflo_activation": "LeakyReLU",
+  
+    "iflo_cf_eswn": ["E"],
+    "iflo_cf_cond": true,
+  #  "iflo_regu" : 0.1,
+  #  "iflo_min_sr" : 1.0e-5,
+  #  "iflo_max_sr" : 1.0,
+  
+    "iflo_optimizer_emulator": "Adam",
+  
+  
+  
+    "time_start": 0.0,
+    "time_end": 10000.0,
+    "time_save": 500.0,
+  
+  
+  
+    "thk_ratio_density": 0.900,
+  
+  
+  
+  #  "wncd_output_file": "output/m3d_Init_cnn_lrelu_adam_rfreq01_lr5e-3_frame3k.nc",
+    "wncd_output_file": "output/m3d_Stdn_cnn_lrelu_adam_rfreq01_lr5e-3_frame3k.nc",
+    "wncd_vars_to_save" : ["topg", "lsurf", "usurf", "thk", "U", "V","C_shear","C_slid","C_grav","C_front"]
+  
+  
+    
+  }
