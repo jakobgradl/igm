@@ -5,7 +5,17 @@ import math
 def initialize_iceflow_fields(params,state):
 
     # here we initialize variable parmaetrizing ice flow
-    if not hasattr(state, "arrhenius"):
+    if hasattr(state, "arrhenius"):
+        if params.iflo_dim_arrhenius == 3 and len(state.arrhenius.shape)==2:
+            arrhenius = state.arrhenius
+            state.arrhenius = tf.Variable(
+                tf.ones((params.iflo_Nz, state.thk.shape[0], state.thk.shape[1]))
+                * arrhenius, trainable=False
+            )
+        else:
+            pass
+    else:
+#    if not hasattr(state, "arrhenius"):
         if params.iflo_dim_arrhenius == 3:
             state.arrhenius = tf.Variable(
                 tf.ones((params.iflo_Nz, state.thk.shape[0], state.thk.shape[1]))
