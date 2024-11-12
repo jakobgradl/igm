@@ -102,6 +102,12 @@ def params_iceflow(parser):
         default=False,
         help="save the iceflow emaultor at the end of the simulation",
     )
+    parser.add_argument(
+        "--iflo_save_model_dir",
+        type=str,
+        default="iceflow-model",
+        help="directory where to save the emulator"
+    )
 
     # vertical discretization
     parser.add_argument(
