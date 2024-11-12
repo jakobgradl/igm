@@ -1,0 +1,40 @@
+{
+    "modules_preproc": ["make_synthetic"],
+    "modules_process": [
+                        "iceflow"
+                       ],
+    "modules_postproc": [
+                         "write_ncdf",
+                         "plot_synthetic"
+                        ],
+
+
+    "iflo_type": "emulated",
+    "iflo_pretrained_emulator": false,
+    "iflo_save_model_dir": "iceflow-model/synthetic_forward",
+
+    "iflo_init_slidingco": 0.0,
+    "iflo_exp_glen": 3,
+    "iflo_exp_weertman": 3,
+    "iflo_gravity_cst": 9.8,
+    "iflo_ice_density": 900,
+    "iflo_new_friction_param": false,
+
+    "iflo_Nz" : 10,
+    "iflo_vert_spacing": 3,
+    "iflo_dim_arrhenius": 3,
+
+    "iflo_retrain_emulator_freq" : 1,
+    "iflo_retrain_emulator_lr" : 0.0005,
+    "iflo_retrain_emulator_nbit_init" : 1000,
+    "iflo_retrain_emulator_framesizemax": 3000,
+    "iflo_multiple_window_size": 0,
+    "iflo_force_max_velbar": 2000.0,
+
+    "iflo_network": "cnn",
+    "iflo_activation": "LeakyReLU",
+    "iflo_optimizer_emulator": "Adam",
+
+    "wncd_output_file": "output/synthetic_forward.nc",
+    "wncd_vars_to_save" : ["topg", "lsurf", "usurf", "thk", "U", "V"]
+}
