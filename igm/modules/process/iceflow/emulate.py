@@ -294,7 +294,8 @@ def _split_into_patches(X, nbmax):
 
 
 def save_iceflow_model(params, state):
-    directory = "iceflow-model"
+    #directory = "iceflow-model"
+    directory = params.iflo_save_model_dir
     
     import shutil
 
