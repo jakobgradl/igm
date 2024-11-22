@@ -61,6 +61,7 @@ def initialize(params, state):
     state.var_info_ncdf_ex["uvelsurf"] = ["x surface velocity of ice", "m/y"]
     state.var_info_ncdf_ex["vvelsurf"] = ["y surface velocity of ice", "m/y"]
     state.var_info_ncdf_ex["wvelsurf"] = ["z surface velocity of ice", "m/y"]
+    state.var_info_ncdf_ex["velprofile"] = ["Central ice velocity profile", "m/y"]
     state.var_info_ncdf_ex["velsurf_mag"] = ["Surface velocity magnitude of ice", "m/y"]
     state.var_info_ncdf_ex["uvelbase"] = ["x basal velocity of ice", "m/y"]
     state.var_info_ncdf_ex["vvelbase"] = ["y basal velocity of ice", "m/y"]
@@ -89,6 +90,9 @@ def update(params, state):
 
         if "velbar_mag" in params.wncd_vars_to_save:
             state.velbar_mag = getmag(state.ubar, state.vbar)
+
+        if "velprofile" in params.wncd_vars_to_save:
+            state.velbar_mag = getmag(state.U[:,:,state.U.shape[2]//2,:], state.V[:,:,state.V.shape[2]//2,:])
 
         if "velsurf_mag" in params.wncd_vars_to_save:
             state.velsurf_mag = getmag(state.uvelsurf, state.vvelsurf)
