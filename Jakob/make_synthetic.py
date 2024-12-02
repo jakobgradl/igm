@@ -31,20 +31,38 @@ def initialize(params, state):
     
 
 # geometry
-    state.topg = -900.0 * tf.zeros_like(state.X) # usurf == -lsurf @ GL
+    # # Loafpan bed
+    # topg = -900.0 * np.ones(state.X.shape) # usurf == 0.1*thk @ GL, i.e., GL at E-border of domain
+    # topg[:,0] = topg[0,:] = topg[-1,:] = 3000.0
+    # topg[1:-2,1] = topg[1,1:] = topg[-2,1:] = 3000.0 - (3900.0 / 3.0)
+    # topg[2:-3,2] = topg[2,2:] = topg[-3,2:] = 3000.0 - 2*(3900.0 / 3)
+    # state.topg = tf.Variable(topg.astype("float32"))
+
+    # flat bed
+    topg = np.ones(state.X.shape) * -900.0
+    state.topg = tf.Variable(topg.astype("float32"))
+
     # state.usurf = tf.ones_like(state.X) * ( state.X / 1000.0) * (-5.0) + 1000.0 
     # 1000m upstream, decreasing to 450m downstream, inspired by Denman surface slope from Young et al., 2015
     # state.usurf = 400 * tf.math.log((state.X * (-1e-3)) + 201.25)
     # 2100m upstream, decreasing logarithmically to 90m at GL, inspired by Denman surface slope
-    # state.usurf = 400 * tf.math.log((state.X * (-0.5e-3)) + 101.25) # logSurf
-    state.usurf = (state.X/1000.0) * (-9.5) + 2000.0 # linSurf
+    usurf = 400 * np.log((state.X.numpy() * (-0.5e-3)) + 101.25) # logSurf
+    # usurf = (state.X.numpy()/1000.0) * (-9.5) + 2000.0 # linSurf
+    usurf = np.where(usurf > topg, usurf, topg)#+1.0)
+    state.usurf = tf.Variable(usurf.astype("float32"))
+    
     state.lsurf = state.topg * tf.ones_like(state.topg)
     state.thk = state.usurf - state.lsurf
     
 
 # parameters
 
-    state.smb = 0.2 * tf.ones_like(state.X)
+    smb = 0.2 * np.ones(state.X.shape)
+    state.smb = tf.where(state.topg > -800.0, 0.0, smb)
+
+    slidingco = np.ones(state.X.shape) * 100.0
+    slidingco[0:10] = slidingco[-11:-1] = 0.0
+    state.slidingco = tf.Variable(slidingco.astype("float32"))
 
     # c_ranga = False
 
@@ -87,30 +105,15 @@ def initialize(params, state):
     #     # state.slidingco = tf.zeros_like(state.X)
 
 
-    # # Flow rate field from Ranganathan et al., 2020
-    # # define as 2d, vertical extrusion in utils.py at initialisation
-    # arrhenius = 1.6729e-7 * tf.ones_like(state.X) # kPa^-3 a^-1
-    # arrhenius = arrhenius * (1 + 0.5 * np.cos((2 * np.pi * state.Y) / (20000) ))  # frate_reverse
-    # # arrhenius *= (1 + 0.5 * np.cos((2 * np.pi * state.Y) / (2*20000) ))               # new_frate
-    # state.arrhenius = arrhenius * 1e9 # kPa to MPa
+    # Flow rate field inspired by Ranganathan et al., 2020
+    arrhenius = 40 * tf.ones_like(state.X)
+    arrhenius = arrhenius * (1 - 0.8 * np.cos((2 * np.pi * state.Y) / (20000) )) # A between 9 in centre and 71 in margins
 
 
 
-    ###### TO DO:
-    # prescribe surface accumulation (0.2 m/a)
+    ###### TODO:
     # ask in Discord about how to set boundary conditions
-    # if I need to flip frate, then probs something is not right
-    # would make sense that the shear margins have higher flow rate/lower viscosity
-    # for slidingco: c is not equal c, check the exact implementation and equations to figure out appropriate values
-    # make a transient run to evolve the geometry/velocity balance with prescribed mass influx
-    # use simple surface geometry (linear)
-
-
-# remaining issues
-
-    # Still need to do something about lateral no-slip
-    # and input flux
-    # output/GL boundary is given by hydrostatic pressure. Maybe activate CF?? but CF only applies where lsurf < 0
+    # Still need to do something about input flux
 
 
     # complete_data(state)
