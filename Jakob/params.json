@@ -1,32 +1,38 @@
 {
     "modules_preproc": ["make_synthetic"],
     "modules_process": [
-                        "iceflow"
+                        "iceflow",
+                        "time",
+                        "thk"
                        ],
     "modules_postproc": [
-                         "write_ncdf",
-                         "plot_synthetic"
+                         "write_ncdf"
                         ],
 
 
     "iflo_type": "emulated",
     "iflo_pretrained_emulator": false,
+    "iflo_save_model": false,
     "iflo_save_model_dir": "iceflow-model/synthetic_forward",
 
-    "iflo_init_slidingco": 0.0,
+#    "iflo_init_slidingco": 0.0,
     "iflo_exp_glen": 3,
     "iflo_exp_weertman": 3,
     "iflo_gravity_cst": 9.8,
-    "iflo_ice_density": 900,
-    "iflo_new_friction_param": false,
+    "iflo_ice_density": 910,
+    "iflo_new_friction_param": true,
 
-    "iflo_Nz" : 10,
+    "iflo_Nz" : 15,
     "iflo_vert_spacing": 3,
     "iflo_dim_arrhenius": 3,
 
+    "iflo_no_slip_boundary": false,
+
     "iflo_retrain_emulator_freq" : 1,
-    "iflo_retrain_emulator_lr" : 0.0005,
-    "iflo_retrain_emulator_nbit_init" : 1000,
+#    "iflo_retrain_emulator_lr" : 0.00002,
+    "iflo_retrain_emulator_lr" : 0.0001,
+    "iflo_retrain_emulator_nbit_init" : 2000,
+    "iflo_retrain_emulator_nbit": 5,
     "iflo_retrain_emulator_framesizemax": 3000,
     "iflo_multiple_window_size": 0,
     "iflo_force_max_velbar": 2000.0,
@@ -35,6 +41,14 @@
     "iflo_activation": "LeakyReLU",
     "iflo_optimizer_emulator": "Adam",
 
-    "wncd_output_file": "output/synthetic_forward.nc",
-    "wncd_vars_to_save" : ["topg", "lsurf", "usurf", "thk", "U", "V"]
+    "time_start": 0.0,
+    "time_end": 1.0,
+    "time_save": 1.0,
+
+    "iflo_cf_cond": true,
+    "iflo_cf_eswn": ["E"],
+
+
+    "wncd_vars_to_save" : ["lsurf", "usurf", "uvelsurf", "vvelsurf", "uvelprofile"]
+    # save only velsurf, vertserf; create storage volume on Nectar  
 }
