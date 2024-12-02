@@ -47,8 +47,9 @@ def initialize(params, state):
 
     # give information on variables for output ncdf, TODO: IMPROVE
     state.var_info_ncdf_ex = {}
-    state.var_info_ncdf_ex["topg"] = ["Basal Topography", "m"]
-    state.var_info_ncdf_ex["usurf"] = ["Surface Topography", "m"]
+    state.var_info_ncdf_ex["topg"] = ["Bed Topography", "m"]
+    state.var_info_ncdf_ex["usurf"] = ["Ice Surface Elevation", "m"]
+    state.var_info_ncdf_ex["lsurf"] = ["Ice Base Elevation", "m"]
     state.var_info_ncdf_ex["thk"] = ["Ice Thickness", "m"]
     state.var_info_ncdf_ex["icemask"] = ["Ice mask", "NO UNIT"]
     state.var_info_ncdf_ex["smb"] = ["Surface Mass Balance", "m/y ice eq"]
@@ -61,7 +62,7 @@ def initialize(params, state):
     state.var_info_ncdf_ex["uvelsurf"] = ["x surface velocity of ice", "m/y"]
     state.var_info_ncdf_ex["vvelsurf"] = ["y surface velocity of ice", "m/y"]
     state.var_info_ncdf_ex["wvelsurf"] = ["z surface velocity of ice", "m/y"]
-    state.var_info_ncdf_ex["velprofile"] = ["Central ice velocity profile", "m/y"]
+    state.var_info_ncdf_ex["uvelprofile"] = ["Central ice x velocity profile", "m/y"]
     state.var_info_ncdf_ex["velsurf_mag"] = ["Surface velocity magnitude of ice", "m/y"]
     state.var_info_ncdf_ex["uvelbase"] = ["x basal velocity of ice", "m/y"]
     state.var_info_ncdf_ex["vvelbase"] = ["y basal velocity of ice", "m/y"]
@@ -91,8 +92,8 @@ def update(params, state):
         if "velbar_mag" in params.wncd_vars_to_save:
             state.velbar_mag = getmag(state.ubar, state.vbar)
 
-        if "velprofile" in params.wncd_vars_to_save:
-            state.velbar_mag = getmag(state.U[:,:,state.U.shape[2]//2,:], state.V[:,:,state.V.shape[2]//2,:])
+        if "uvelprofile" in params.wncd_vars_to_save:
+            state.uvelprofile = state.U[:,state.U.shape[1]//2,:]
 
         if "velsurf_mag" in params.wncd_vars_to_save:
             state.velsurf_mag = getmag(state.uvelsurf, state.vvelsurf)
@@ -151,9 +152,14 @@ def update(params, state):
             for var in params.wncd_vars_to_save:
                 if hasattr(state, var):
                     if vars(state)[var].numpy().ndim == 2:
-                        E = nc.createVariable(
-                            var, np.dtype("float32").char, ("time", "y", "x")
-                        )
+                        if var == "uvelprofile":
+                            E = nc.createVariable(
+                                var, np.dtype("float32").char, ("time", "z", "x")
+                            )
+                        else:
+                            E = nc.createVariable(
+                                var, np.dtype("float32").char, ("time", "y", "x")
+                            )
                         E[0, :, :] = vars(state)[var].numpy()
                     elif vars(state)[var].numpy().ndim == 3:
                         E = nc.createVariable(
