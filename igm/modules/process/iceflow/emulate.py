@@ -197,7 +197,13 @@ def update_iceflow_emulator(params, state):
                     COST = tf.reduce_mean(C_shear) + tf.reduce_mean(C_slid) \
                          + tf.reduce_mean(C_grav)  + tf.reduce_mean(C_float)
                     
-                    if (epoch + 1) % 100 == 0:
+
+                    if state.it <= 0:
+                        print_freq = 100
+                    elif state.it > 0:
+                        print_freq = params.iflo_retrain_emulator_nbit
+
+                    if (epoch + 1) % print_freq == 0:
                         print("---------- > ", tf.reduce_mean(C_shear).numpy(), tf.reduce_mean(C_slid).numpy(), tf.reduce_mean(C_grav).numpy(), tf.reduce_mean(C_float).numpy())
 
 #                    state.C_shear = tf.pad(C_shear[0],[[0,1],[0,1]],"CONSTANT")
@@ -208,13 +214,14 @@ def update_iceflow_emulator(params, state):
                     # print(state.C_shear.shape, state.C_slid.shape, state.C_grav.shape, state.C_float.shape,state.thk.shape )
 
                     cost_emulator = cost_emulator + COST
-
-                    if (epoch + 1) % 100 == 0:
+                    
+                    if (epoch + 1) % print_freq == 0:
                         U, V = Y_to_UV(params, Y)
                         U = U[0]
                         V = V[0]
                         velsurf_mag = tf.sqrt(U[-1] ** 2 + V[-1] ** 2)
-                        print("train : ", epoch, COST.numpy(), np.max(velsurf_mag))
+                        time = state.t.numpy()
+                        print("time:", time, " epoch:", epoch, " cost:", COST.numpy(), " velsurf mean / max:", np.mean(velsurf_mag), "/", np.max(velsurf_mag))
 
                 grads = t.gradient(COST, state.iceflow_model.trainable_variables)
 
