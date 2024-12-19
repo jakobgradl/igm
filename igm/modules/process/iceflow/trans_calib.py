@@ -86,10 +86,10 @@ def trans_calib(params, state):
         state.dens_thkobs = create_density_matrix(state.thk_tcal_obs, kernel_size=5)
         state.dens_thkobs = tf.where(tf.math.is_nan(state.thkobs),0.0,state.dens_thkobs)
         state.dens_thkobs = tf.where(state.dens_thkobs>0, 1.0/state.dens_thkobs, 0.0)
-        state.dens_thkobs = tf.math.division( # divide every time slice in state.dens_thkobs with its mean value
+        state.dens_thkobs = tf.math.division( # divide every time slice in state.dens_thkobs with its spatial average
             state.dens_thkobs, 
             tf.reshape(
-                tf.reduce_mean(tf.reduce_mean(state.dens_thkobs[state.dens_thkobs>0], axis=1), axis=1), # mean value of every time slice
+                tf.reduce_mean(tf.reduce_mean(state.dens_thkobs[state.dens_thkobs>0], axis=1), axis=1), # spatial average of every time slice
                 [state.dens_thkobs.shape[0],1,1] # reshape to be broadcastable with state.dens_thkobs
                 )
             )
@@ -715,30 +715,30 @@ def _compute_rms_std_optimization(state, i):
 
 
 def _compute_flow_direction_for_anisotropic_smoothing(state):
-    uvelsurf = tf.where(tf.math.is_nan(state.uvelsurf), 0.0, state.uvelsurf)
-    vvelsurf = tf.where(tf.math.is_nan(state.vvelsurf), 0.0, state.vvelsurf)
+    uvelsurf = tf.where(tf.math.is_nan(state.uvelsurf_tcal), 0.0, state.uvelsurf_tcal)
+    vvelsurf = tf.where(tf.math.is_nan(state.vvelsurf_tcal), 0.0, state.vvelsurf_tcal)
 
-    state.flowdirx = (
-        uvelsurf[1:, 1:] + uvelsurf[:-1, 1:] + uvelsurf[1:, :-1] + uvelsurf[:-1, :-1]
+    state.flowdirx_tcal = (
+        uvelsurf[:, 1:, 1:] + uvelsurf[:, :-1, 1:] + uvelsurf[:, 1:, :-1] + uvelsurf[:, :-1, :-1]
     ) / 4.0
-    state.flowdiry = (
-        vvelsurf[1:, 1:] + vvelsurf[:-1, 1:] + vvelsurf[1:, :-1] + vvelsurf[:-1, :-1]
+    state.flowdiry_tcal = (
+        vvelsurf[:, 1:, 1:] + vvelsurf[:, :-1, 1:] + vvelsurf[:, 1:, :-1] + vvelsurf[:, :-1, :-1]
     ) / 4.0
 
     from scipy.ndimage import gaussian_filter
 
-    state.flowdirx = gaussian_filter(state.flowdirx, 3, mode="constant")
-    state.flowdiry = gaussian_filter(state.flowdiry, 3, mode="constant")
+    state.flowdirx_tcal = gaussian_filter(state.flowdirx_tcal, 3, mode="constant", axes=(1,2))
+    state.flowdiry_tcal = gaussian_filter(state.flowdiry_tcal, 3, mode="constant", axes=(1,2))
 
     # Same as gaussian filter above but for tensorflow is (NOT TESTED)
     # import tensorflow_addons as tfa
     # state.flowdirx = ( tfa.image.gaussian_filter2d( state.flowdirx , sigma=3, filter_shape=100, padding="CONSTANT") )
 
-    state.flowdirx /= getmag(state.flowdirx, state.flowdiry)
-    state.flowdiry /= getmag(state.flowdirx, state.flowdiry)
+    state.flowdirx_tcal /= getmag(state.flowdirx_tcal, state.flowdiry_tcal) # modified getmag() in utils.py to work with _tcal variables
+    state.flowdiry_tcal /= getmag(state.flowdirx_tcal, state.flowdiry_tcal)
 
-    state.flowdirx = tf.where(tf.math.is_nan(state.flowdirx), 0.0, state.flowdirx)
-    state.flowdiry = tf.where(tf.math.is_nan(state.flowdiry), 0.0, state.flowdiry)
+    state.flowdirx_tcal = tf.where(tf.math.is_nan(state.flowdirx_tcal), 0.0, state.flowdirx_tcal)
+    state.flowdiry_tcal = tf.where(tf.math.is_nan(state.flowdiry_tcal), 0.0, state.flowdiry_tcal)
     
     # state.flowdirx = tf.zeros_like(state.flowdirx)
     # state.flowdiry = tf.ones_like(state.flowdiry)
