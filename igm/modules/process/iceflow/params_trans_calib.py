@@ -74,3 +74,9 @@ def params_tcal(parser):
         default=0.1,
         help="Scaling factor for the Arrhenius in the optimization, serve to adjust step-size of each controls relative to each other",
     )
+    parser.add_argument(
+        "--tcal_uniformize_thkobs",
+        type=str2bool,
+        default=True,
+        help="uniformize the density of thkobs",
+    )

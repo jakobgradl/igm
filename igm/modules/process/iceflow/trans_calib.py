@@ -18,19 +18,34 @@ from .emulate import *
 from .optimize_outputs import *
 from .optimize_params_cook import *
  
-def optimize(params, state):
+def trans_calib(params, state):
 
-    # if we want to invert from a simulation output/optimisation output
-    if params.opti_load_from_sim:
-        state.thkobs = state.thkinit = state.thk
-        state.usurfobs = state.usurf
-        # state.velsurfobs = state.velsurf_mag
-        state.divfluxobs = state.divflux
-        state.uvelsurfobs = state.uvelsurf
-        state.vvelsurfobs = state.vvelsurf
-        if hasattr(params, "lncd_time_load"):
-            state.icemask = tf.where(state.thk == 0.0, 0.0, 1.0)
-        state.icemaskobs = state.icemask
+    load_tcal_data(params, state)
+
+
+    ###### add a time dimension to all transient variables 
+    # emulator input and output variables:
+    iflo_fieldin_tcal = [s + "_tcal" for s in params.iflo_fieldin]
+    for var1, var2 in zip(params.iflo_fieldin, iflo_fieldin_tcal):
+        if var1 not in ["dX"]:
+            vars(state)[var2] = tf.expand_dims(vars(state)[var1], axis=0)
+
+    for var1, var2 in zip(["U","V"], ["U_tcal","V_tcal"]):
+        vars(state)[var2] = tf.expand_dims(vars(state)[var1], axis=0)
+
+    # control parameters:
+    opti_control_tcal = [s + "_tcal" for s in params.tcal_control_trans]
+    for var1, var2 in zip(params.tcal_control_trans, opti_control_tcal):
+        vars(state)[var2] = tf.expand_dims(vars(state)[var1], axis=0)
+
+    # cost parameters:
+    opti_cost_tcal = [s + "_tcal" for s in params.tcal_cost_trans]
+    for var1, var2 in zip(params.tcal_cost_trans, opti_cost_tcal):
+        vars(state)[var2] = tf.expand_dims(vars(state)[var1], axis=0)
+
+    # TODO add time dim to const parameters too???
+
+
 
     ###### PERFORM CHECKS PRIOR OPTIMIZATIONS
 
@@ -38,55 +53,60 @@ def optimize(params, state):
     # state.usurfobs = tf.Variable(gaussian_filter(state.usurfobs.numpy(), 3, mode="reflect"))
     # state.usurf    = tf.Variable(gaussian_filter(state.usurf.numpy(), 3, mode="reflect"))
 
+    params.tcal_cost = params.tcal_cost_const + params.tcal_cost_trans
+    params.tcal_control = params.tcal_control_const + params.tcal_control_trans
+
     # make sure this condition is satisfied
-    assert ("usurf" in params.opti_cost) == ("usurf" in params.opti_control)
+    assert ("usurf" in params.tcal_cost_trans) == ("usurf" in params.tcal_control_trans)
 
     # make sure that there are lease some profiles in thkobs
-    if "thk" in params.opti_cost:
-        if tf.reduce_all(tf.math.is_nan(state.thkobs)):
-            print("\n    WARNING: No thickness observation data available; removing thk from params.opti_cost    \n")
-            params.opti_cost.remove("thk")
+    if "thk" in params.tcal_cost:
+        if tf.reduce_all(tf.math.is_nan(state.thk_tcal_obs)):
+            print("\n    WARNING: No thickness observation data available; removing thk from tcal_cost    \n")
+            params.tcal_cost.remove("thk")
 
     ###### PREPARE DATA PRIOR OPTIMIZATIONS
  
-    if "divfluxobs" in params.opti_cost:
-        if not hasattr(state, "divfluxobs"):
-            state.divfluxobs = state.smb - state.dhdt
+    # TODO do something about this (will probably get a bigger/different role in the trans calib)
+    # if "divfluxobs" in tcal_cost:
+    #     if not hasattr(state, "divflux_tcal_obs"):
+    #         state.divfluxobs = state.smb - state.dhdt
 
     if hasattr(state, "thkinit"):
-        state.thk = state.thkinit
+        thk_tcal[:] = state.thkinit
     else:
-        state.thk = tf.zeros_like(state.thk)
+        thk_tcal = thk_tcal * 0.0
 
     if params.opti_init_zero_thk:
-        state.thk = state.thk*0.0
+        thk_tcal = thk_tcal * 0.0
         
     # this is a density matrix that will be used to weight the cost function
-    if params.opti_uniformize_thkobs:
-        state.dens_thkobs = create_density_matrix(state.thkobs, kernel_size=5)
-        state.dens_thkobs = tf.where(state.dens_thkobs>0, 1.0/state.dens_thkobs, 0.0)
+    if params.tcal_uniformize_thkobs:
+        state.dens_thkobs = create_density_matrix(state.thk_tcal_obs, kernel_size=5)
         state.dens_thkobs = tf.where(tf.math.is_nan(state.thkobs),0.0,state.dens_thkobs)
-        state.dens_thkobs = state.dens_thkobs / tf.reduce_mean(state.dens_thkobs[state.dens_thkobs>0])
+        state.dens_thkobs = tf.where(state.dens_thkobs>0, 1.0/state.dens_thkobs, 0.0)
+        state.dens_thkobs = state.dens_thkobs / tf.reduce_mean(state.dens_thkobs[state.dens_thkobs>0], axis=0) # weight calculated separately for every timestep
     else:
-        state.dens_thkobs = tf.ones_like(state.thkobs)
+        state.dens_thkobs = tf.ones_like(state.thk_tcal_obs)
         
     # force zero slidingco in the floating areas
-    state.slidingco = tf.where( state.icemaskobs == 2, 0.0, state.slidingco)
+    state.slidingco_tcal = tf.where( state.icemask_tcal_obs == 2, 0.0, state.slidingco_tcal)
     
-    # this will infer values for slidingco and convexity weight based on the ice velocity and an empirical relationship from test glaciers with thickness profiles
-    if params.opti_infer_params:
-        #Because OGGM will index icemask from 0
-        dummy = infer_params_cook(state, params)
-        if tf.reduce_max(state.icemask).numpy() < 1:
-            return
+    # # this is generally not active in optimize
+    # # this will infer values for slidingco and convexity weight based on the ice velocity and an empirical relationship from test glaciers with thickness profiles
+    # if params.opti_infer_params:
+    #     #Because OGGM will index icemask from 0
+    #     dummy = infer_params_cook(state, params)
+    #     if tf.reduce_max(state.icemask).numpy() < 1:
+    #         return
     
     if (int(tf.__version__.split(".")[1]) <= 10) | (int(tf.__version__.split(".")[1]) >= 16) :
-        optimizer = tf.keras.optimizers.Adam(learning_rate=params.opti_step_size)
+        optimizer = tf.keras.optimizers.Adam(learning_rate=params.tcal_step_size)
         opti_retrain = tf.keras.optimizers.Adam(
             learning_rate=params.iflo_retrain_emulator_lr
         )
     else:
-        optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=params.opti_step_size)
+        optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=params.tcal_step_size)
         opti_retrain = tf.keras.optimizers.legacy.Adam(
             learning_rate=params.iflo_retrain_emulator_lr
         )
@@ -95,14 +115,14 @@ def optimize(params, state):
 
     # this thing is outdated with using iflo_new_friction_param default as we use scaling of one.
     sc = {}
-    sc["thk"] = params.opti_scaling_thk
-    sc["usurf"] = params.opti_scaling_usurf
-    sc["slidingco"] = params.opti_scaling_slidingco
-    sc["arrhenius"] = params.opti_scaling_arrhenius
+    sc["thk_tcal"] = params.tcal_scaling_thk
+    sc["usurf_tcal"] = params.tcal_scaling_usurf
+    sc["slidingco_tcal"] = params.tcal_scaling_slidingco
+    sc["arrhenius_tcal"] = params.tcal_scaling_arrhenius
     
     Ny, Nx = state.thk.shape
 
-    for f in params.opti_control:
+    for f in params.tcal_control:
         vars()[f] = tf.Variable(vars(state)[f] / sc[f])
 
     # main loop
@@ -602,12 +622,19 @@ def create_density_matrix(data, kernel_size):
     # Create a kernel for convolution (all ones)
     kernel = tf.ones((kernel_size, kernel_size, 1, 1), dtype=binary_mask.dtype)
 
-    # Apply convolution to count valid data points in the neighborhood
-    density = tf.nn.conv2d(tf.expand_dims(tf.expand_dims(binary_mask, 0), -1), 
-                           kernel, strides=[1, 1, 1, 1], padding='SAME')
+    for i in range(data.shape[0]):
+        # Apply convolution to count valid data points in the neighborhood
+        density_slice = tf.nn.conv2d(tf.expand_dims(tf.expand_dims(binary_mask[i], 0), -1), 
+                            kernel, strides=[1, 1, 1, 1], padding='SAME')
 
-    # Remove the extra dimensions added for convolution
-    density = tf.squeeze(density)
+        # Remove the extra dimensions added for convolution
+        density_slice = tf.squeeze(density_slice)
+
+        density_slice = tf.expand_dims(density_slice, axis=0)
+        if i==0:
+            density = density_slice
+        else:
+            density = tf.concat([density, density_slice], axis=0)
 
     return density
 
@@ -700,3 +727,21 @@ def _compute_flow_direction_for_anisotropic_smoothing(state):
     # fig, axs = plt.subplots(1, 1, figsize=(8,16))
     # plt.quiver(state.flowdirx,state.flowdiry)
     # axs.axis("equal")
+
+
+def load_tcal_data(params, state):
+
+    # load state variables with load_ncdf.py
+    # here, load multiple _obs variables that I can dynamically pass to optimize()
+
+    with xr.open_dataset(params.tcal_input_file) as ds:
+
+        obs_list = ["uvelsurf", "vvelsurf", "usurf"]
+        tcal_list = [s + "_tcal_obs" for s in obs_list]
+
+        for var in obs_list:
+            vars()[var] = ds[var].sel(time=params.tcal_times)
+            vars()[var] = np.where(vars()[var] > 10**35, np.nan, vars()[var])
+
+        for obsvar, tcalvar in zip(obs_list, tcal_list):
+            vars(state)[tcalvar] = tf.Variable(vars()[obsvar], dtype=tf.float32, trainable=False)
