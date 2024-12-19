@@ -86,9 +86,13 @@ def trans_calib(params, state):
         state.dens_thkobs = create_density_matrix(state.thk_tcal_obs, kernel_size=5)
         state.dens_thkobs = tf.where(tf.math.is_nan(state.thkobs),0.0,state.dens_thkobs)
         state.dens_thkobs = tf.where(state.dens_thkobs>0, 1.0/state.dens_thkobs, 0.0)
-        state.dens_thkobs = state.dens_thkobs / tf.reduce_mean( 
-            tf.reduce_mean(state.dens_thkobs[state.dens_thkobs>0], axis=1), 
-            axis=1) 
+        state.dens_thkobs = tf.math.division( # divide every time slice in state.dens_thkobs with its mean value
+            state.dens_thkobs, 
+            tf.reshape(
+                tf.reduce_mean(tf.reduce_mean(state.dens_thkobs[state.dens_thkobs>0], axis=1), axis=1), # mean value of every time slice
+                [state.dens_thkobs.shape[0],1,1] # reshape to be broadcastable with state.dens_thkobs
+                )
+            )
         # tf.reduce_mean(tf.reduce_mean(x)) => mean of every time slice
     else:
         state.dens_thkobs = tf.ones_like(state.thk_tcal_obs)
