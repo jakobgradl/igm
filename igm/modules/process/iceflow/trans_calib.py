@@ -25,21 +25,20 @@ def trans_calib(params, state):
 
     ###### add a time dimension to all transient variables 
     # emulator input and output variables:
-    iflo_fieldin_tcal = [s + "_tcal" for s in params.iflo_fieldin]
+    params.iflo_fieldin_tcal = [s + "_tcal" for s in params.iflo_fieldin]
     for var1, var2 in zip(params.iflo_fieldin, iflo_fieldin_tcal):
-        if var1 not in ["dX"]:
-            vars(state)[var2] = tf.expand_dims(vars(state)[var1], axis=0)
+        vars(state)[var2] = tf.expand_dims(vars(state)[var1], axis=0)
 
     for var1, var2 in zip(["U","V"], ["U_tcal","V_tcal"]):
         vars(state)[var2] = tf.expand_dims(vars(state)[var1], axis=0)
 
     # control parameters:
-    opti_control_tcal = [s + "_tcal" for s in params.tcal_control_trans]
+    opti_control_tcal = [s + "_tcal" for s in params.tcal_control]
     for var1, var2 in zip(params.tcal_control_trans, opti_control_tcal):
         vars(state)[var2] = tf.expand_dims(vars(state)[var1], axis=0)
 
     # cost parameters:
-    opti_cost_tcal = [s + "_tcal" for s in params.tcal_cost_trans]
+    opti_cost_tcal = [s + "_tcal" for s in params.tcal_cost]
     for var1, var2 in zip(params.tcal_cost_trans, opti_cost_tcal):
         vars(state)[var2] = tf.expand_dims(vars(state)[var1], axis=0)
 
@@ -58,6 +57,8 @@ def trans_calib(params, state):
 
     # make sure this condition is satisfied
     assert ("usurf" in params.tcal_cost_trans) == ("usurf" in params.tcal_control_trans)
+    for var in params.tcal_control_const:
+        assert var in params.tcal_control
 
     # make sure that there are lease some profiles in thkobs
     if "thk" in params.tcal_cost:
@@ -85,7 +86,10 @@ def trans_calib(params, state):
         state.dens_thkobs = create_density_matrix(state.thk_tcal_obs, kernel_size=5)
         state.dens_thkobs = tf.where(tf.math.is_nan(state.thkobs),0.0,state.dens_thkobs)
         state.dens_thkobs = tf.where(state.dens_thkobs>0, 1.0/state.dens_thkobs, 0.0)
-        state.dens_thkobs = state.dens_thkobs / tf.reduce_mean(state.dens_thkobs[state.dens_thkobs>0], axis=0) # weight calculated separately for every timestep
+        state.dens_thkobs = state.dens_thkobs / tf.reduce_mean( 
+            tf.reduce_mean(state.dens_thkobs[state.dens_thkobs>0], axis=1), 
+            axis=1) 
+        # tf.reduce_mean(tf.reduce_mean(x)) => mean of every time slice
     else:
         state.dens_thkobs = tf.ones_like(state.thk_tcal_obs)
         
@@ -122,7 +126,7 @@ def trans_calib(params, state):
     
     Ny, Nx = state.thk.shape
 
-    for f in params.tcal_control:
+    for f in [s + "_tcal" for s in params.tcal_control if s != "topg"]:
         vars()[f] = tf.Variable(vars(state)[f] / sc[f])
 
     # main loop
@@ -134,34 +138,46 @@ def trans_calib(params, state):
                 optimizer.lr = params.opti_step_size * (params.opti_step_size_decay ** (i / 100))
 
             # is necessary to remember all operation to derive the gradients w.r.t. control variables
-            for f in params.opti_control:
+            for f in params.tcal_control:
                 t.watch(vars()[f])
 
-            for f in params.opti_control:
+            # non-transient control parameters
+            # assign the time-average mean to every timestep
+            for var in [s + "_tcal" for s in params.tcal_control_const]:
+                v = tf.reduce_mean(vars(state)[var], axis=0)
+                vars(state)[var] = tf.ones_like(vars(state)[var]) * v
+                
+            for f in [s + "_tcal" for s in params.tcal_control if s != "topg"]:
                 vars(state)[f] = vars()[f] * sc[f]
 
-            fieldin = [vars(state)[f] for f in params.iflo_fieldin]
+            if "topg" in params.tcal_control_const:
+                state.thk_tcal = state.usurf_tcal - state.topg_tcal
 
-            X = fieldin_to_X(params, fieldin)
+            fields = [vars(state)[f] for f in params.iflo_fieldin_tcal]
 
-            # evalutae th ice flow emulator                
-            if params.iflo_multiple_window_size==0:
-                Y = state.iceflow_model(X)
-            else:
-                Y = state.iceflow_model(tf.pad(X, state.PAD, "CONSTANT"))[:, :Ny, :Nx, :]
+            for t in range(len(params.tcal_times)):
+                fieldin = [var[t] for var in fields]
 
-            U, V = Y_to_UV(params, Y)
+                X = fieldin_to_X(params, fieldin)
 
-            U = U[0]
-            V = V[0]
-           
-            # this is strange, but it having state.U instead of U, slidingco is not more optimized ....
-            state.uvelbase = U[0, :, :]
-            state.vvelbase = V[0, :, :]
-            state.ubar = tf.reduce_sum(U * state.vert_weight, axis=0)
-            state.vbar = tf.reduce_sum(V * state.vert_weight, axis=0)
-            state.uvelsurf = U[-1, :, :]
-            state.vvelsurf = V[-1, :, :]
+                # evalutae th ice flow emulator                
+                if params.iflo_multiple_window_size==0:
+                    Y = state.iceflow_model(X)
+                else:
+                    Y = state.iceflow_model(tf.pad(X, state.PAD, "CONSTANT"))[:, :Ny, :Nx, :]
+
+                U, V = Y_to_UV(params, Y)
+
+                state.U_tcal[t] = U[0]
+                state.V_tcal[t] = V[0]
+            
+                # this is strange, but it having state.U instead of U, slidingco is not more optimized ....
+            state.uvelbase_tcal = state.U_tcal[:, 0, :, :]
+            state.vvelbase_tcal = state.V_tcal[:, 0, :, :]
+            state.ubar_tcal = tf.reduce_sum(state.U_tcal * state.vert_weight, axis=0)
+            state.vbar_tcal = tf.reduce_sum(state.V_tcal * state.vert_weight, axis=0)
+            state.uvelsurf_tcal = state.U_tcal[:, -1, :, :]
+            state.vvelsurf_tcal = state.V_tcal[:, -1, :, :]
  
             if not params.opti_smooth_anisotropy_factor == 1:
                 _compute_flow_direction_for_anisotropic_smoothing(state)

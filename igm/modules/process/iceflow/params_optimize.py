@@ -263,5 +263,11 @@ def params_optimize(parser):
         default=0.0,
         help="Threshold for the surface ice velocities as input data for the optimization, anything below this value will be ignored",
     )
+    parser.add_argument(
+        "--opti_load_from_sim",
+        type=str2bool,
+        default=False,
+        help="If the input file doesn't have any -obs data (like the output of a prior optimisation/simulation)"
+    )
 
     
