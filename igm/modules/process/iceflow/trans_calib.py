@@ -158,19 +158,21 @@ def trans_calib(params, state):
                 state.thk_tcal = state.usurf_tcal - state.topg_tcal
 
             fields = [vars(state)[f] for f in params.iflo_fieldin_tcal]
+            X = []
+            Y = []
 
             for t in range(len(params.tcal_times)):
                 fieldin = [var[t] for var in fields]
 
-                X = fieldin_to_X(params, fieldin)
+                X[t] = fieldin_to_X(params, fieldin)
 
                 # evalutae th ice flow emulator                
                 if params.iflo_multiple_window_size==0:
-                    Y = state.iceflow_model(X)
+                    Y[t] = state.iceflow_model(X[t])
                 else:
-                    Y = state.iceflow_model(tf.pad(X, state.PAD, "CONSTANT"))[:, :Ny, :Nx, :]
+                    Y[t] = state.iceflow_model(tf.pad(X, state.PAD, "CONSTANT"))[:, :Ny, :Nx, :]
 
-                U, V = Y_to_UV(params, Y)
+                U, V = Y_to_UV(params, Y[t])
 
                 state.U_tcal[t] = U[0]
                 state.V_tcal[t] = V[0]
@@ -232,12 +234,14 @@ def trans_calib(params, state):
             cost_total = tf.reduce_sum(tf.convert_to_tensor(list(cost.values())))
 
             # Here one allow retraining of the ice flow emaultor
+            cost["glen"] = 0
             if params.tcal_retrain_iceflow_model:
-                C_shear, C_slid, C_grav, C_float = iceflow_energy_XY(params, X, Y)
+                for t in range(len(params.tcal_times)):
+                    
+                    C_shear, C_slid, C_grav, C_float = iceflow_energy_XY(params, X[t], Y[t])
 
-                cost["glen"] = tf.reduce_mean(C_shear) + tf.reduce_mean(C_slid) \
-                             + tf.reduce_mean(C_grav)  + tf.reduce_mean(C_float)
-                
+                    cost["glen"] += tf.reduce_mean(C_shear) + tf.reduce_mean(C_slid) + tf.reduce_mean(C_grav)  + tf.reduce_mean(C_float)
+                    
                 grads = s.gradient(cost["glen"], state.iceflow_model.trainable_variables)
 
                 opti_retrain.apply_gradients(
