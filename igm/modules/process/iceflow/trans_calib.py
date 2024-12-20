@@ -449,113 +449,114 @@ def misfit_usurf(params,state):
 
 def regu_thk(params,state):
 
-    areaicemask = tf.reduce_sum(tf.where(state.icemask>0.5,1.0,0.0))*state.dx**2
+    areaicemask_tcal = tf.reduce_sum(tf.reduce_sum(tf.where(state.icemask>0.5,1.0,0.0),axis=1),axis=1)*state.dx**2
 
     # here we had factor 8*np.pi*0.04, which is equal to 1
-    if params.tcal_infer_params:
-        gamma = tf.zeros_like(state.thk)
-        gamma = state.convexity_weights * areaicemask**(params.tcal_convexity_power-2.0)
-    else:
-        gamma = params.tcal_convexity_weight * areaicemask**(params.tcal_convexity_power-2.0)
+    # if params.tcal_infer_params:
+    #     gamma = tf.zeros_like(state.thk)
+    #     gamma = state.convexity_weights * areaicemask_tcal**(params.tcal_convexity_power-2.0)
+    # else:
+    gamma = params.tcal_convexity_weight * areaicemask_tcal**(params.tcal_convexity_power-2.0)
 
     if params.tcal_to_regularize == 'topg':
-        field = state.usurf - state.thk
+        # field = state.usurf - state.thk
+        field = state.topg_tcal
     elif params.tcal_to_regularize == 'thk':
-        field = state.thk
+        field = state.thk_tcal
 
     if params.tcal_smooth_anisotropy_factor == 1:
-        dbdx = (field[:, 1:] - field[:, :-1])/state.dx
-        dbdy = (field[1:, :] - field[:-1, :])/state.dx
+        dbdx = (field[:, :, 1:] - field[:, :, :-1])/state.dx
+        dbdy = (field[:, 1:, :] - field[:, :-1, :])/state.dx
 
         if params.sole_mask:
-            dbdx = tf.where( (state.icemaskobs[:, 1:] > 0.5) & (state.icemaskobs[:, :-1] > 0.5) , dbdx, 0.0)
-            dbdy = tf.where( (state.icemaskobs[1:, :] > 0.5) & (state.icemaskobs[:-1, :] > 0.5) , dbdy, 0.0)
+            dbdx = tf.where( (state.icemaskobs_tcal[:, :, 1:] > 0.5) & (state.icemaskobs_tcal[:, :, :-1] > 0.5) , dbdx, 0.0)
+            dbdy = tf.where( (state.icemaskobs_tcal[:, 1:, :] > 0.5) & (state.icemaskobs_tcal[:, :-1, :] > 0.5) , dbdy, 0.0)
 
-        if params.fix_opti_normalization_issue:
-            REGU_H = (params.tcal_regu_param_thk) * 0.5 * (
-                tf.math.reduce_mean(dbdx**2) + tf.math.reduce_mean(dbdy**2)
-                - gamma * tf.math.reduce_mean(state.thk)
-            )
-        else:
-            REGU_H = (params.tcal_regu_param_thk) * (
-                tf.nn.l2_loss(dbdx) + tf.nn.l2_loss(dbdy)
-                - gamma * tf.math.reduce_sum(state.thk)
-            )
+        # if params.fix_opti_normalization_issue:
+        REGU_H = (params.tcal_regu_param_thk) * 0.5 * (
+            tf.math.reduce_mean(tf.math.reduce_mean(dbdx**2,axis=1),axis=1) + tf.math.reduce_mean(tf.math.reduce_mean(dbdy**2,axis=1),axis=1)
+            - gamma * tf.math.reduce_mean(tf.math.reduce_mean(state.thk_tcal,axis=1),axis=1)
+        )
+        # else:
+        #     REGU_H = (params.tcal_regu_param_thk) * (
+        #         tf.nn.l2_loss(dbdx) + tf.nn.l2_loss(dbdy)
+        #         - gamma * tf.math.reduce_sum(tf.math.reduce_sum(state.thk,axis=1),axis=1)
+        #     )
     else:
-        dbdx = (field[:, 1:] - field[:, :-1])/state.dx
-        dbdx = (dbdx[1:, :] + dbdx[:-1, :]) / 2.0
-        dbdy = (field[1:, :] - field[:-1, :])/state.dx
-        dbdy = (dbdy[:, 1:] + dbdy[:, :-1]) / 2.0
+        dbdx = (field[:, :, 1:] - field[:, :, :-1])/state.dx
+        dbdx = (dbdx[:, 1:, :] + dbdx[:, :-1, :]) / 2.0
+        dbdy = (field[:, 1:, :] - field[:, :-1, :])/state.dx
+        dbdy = (dbdy[:, :, 1:] + dbdy[:, :, :-1]) / 2.0
 
         if params.sole_mask:
-            MASK = (state.icemaskobs[1:, 1:] > 0.5) & (state.icemaskobs[1:, :-1] > 0.5) & (state.icemaskobs[:-1, 1:] > 0.5) & (state.icemaskobs[:-1, :-1] > 0.5)
+            MASK = (state.icemaskobs_tcal[:, 1:, 1:] > 0.5) & (state.icemaskobs_tcal[:, 1:, :-1] > 0.5) & (state.icemaskobs_tcal[:, :-1, 1:] > 0.5) & (state.icemaskobs_tcal[:, :-1, :-1] > 0.5)
             dbdx = tf.where( MASK, dbdx, 0.0)
             dbdy = tf.where( MASK, dbdy, 0.0)
  
-        if params.fix_opti_normalization_issue:
-            REGU_H = (params.tcal_regu_param_thk) * 0.5 * (
-                (1.0/np.sqrt(params.tcal_smooth_anisotropy_factor))
-                * tf.math.reduce_mean((dbdx * state.flowdirx + dbdy * state.flowdiry)**2)
-                + np.sqrt(params.tcal_smooth_anisotropy_factor)
-                * tf.math.reduce_mean((dbdx * state.flowdiry - dbdy * state.flowdirx)**2)
-                - tf.math.reduce_mean(gamma*state.thk)
-            )
-        else:
-            REGU_H = (params.tcal_regu_param_thk) * (
-                (1.0/np.sqrt(params.tcal_smooth_anisotropy_factor))
-                * tf.nn.l2_loss((dbdx * state.flowdirx + dbdy * state.flowdiry))
-                + np.sqrt(params.tcal_smooth_anisotropy_factor)
-                * tf.nn.l2_loss((dbdx * state.flowdiry - dbdy * state.flowdirx))
-                - tf.math.reduce_sum(gamma*state.thk)
-            )
+        # if params.fix_opti_normalization_issue:
+        REGU_H = (params.tcal_regu_param_thk) * 0.5 * (
+            (1.0/np.sqrt(params.tcal_smooth_anisotropy_factor))
+            * tf.math.reduce_mean(tf.math.reduce_mean((dbdx * state.flowdirx_tcal + dbdy * state.flowdiry_tcal)**2, axis=1),axis=1)
+            + np.sqrt(params.tcal_smooth_anisotropy_factor)
+            * tf.math.reduce_mean(tf.math.reduce_mean((dbdx * state.flowdiry_tcal - dbdy * state.flowdirx_tcal)**2, axis=1), axis=1)
+            - tf.math.reduce_mean(tf.math.reduce_mean(gamma*state.thk_tcal, axis=1), axis=1)
+        )
+        # else:
+        #     REGU_H = (params.tcal_regu_param_thk) * (
+        #         (1.0/np.sqrt(params.tcal_smooth_anisotropy_factor))
+        #         * tf.nn.l2_loss((dbdx * state.flowdirx + dbdy * state.flowdiry))
+        #         + np.sqrt(params.tcal_smooth_anisotropy_factor)
+        #         * tf.nn.l2_loss((dbdx * state.flowdiry - dbdy * state.flowdirx))
+        #         - tf.math.reduce_sum(gamma*state.thk)
+        #     )
 
-    return REGU_H
+    return tf.math.reduce_sum(REGU_H)
 
 def regu_slidingco(params,state):
 
 #    if not hasattr(state, "flowdirx"):
-    dadx = (state.slidingco[:, 1:] - state.slidingco[:, :-1])/state.dx
-    dady = (state.slidingco[1:, :] - state.slidingco[:-1, :])/state.dx
+    dadx = (state.slidingco_tcal[:, :, 1:] - state.slidingco_tcal[:, :, :-1])/state.dx
+    dady = (state.slidingco_tcal[:, 1:, :] - state.slidingco_tcal[:, :-1, :])/state.dx
 
     if params.sole_mask:                
-        dadx = tf.where( (state.icemaskobs[:, 1:] == 1) & (state.icemaskobs[:, :-1] == 1) , dadx, 0.0)
-        dady = tf.where( (state.icemaskobs[1:, :] == 1) & (state.icemaskobs[:-1, :] == 1) , dady, 0.0)
+        dadx = tf.where( (state.icemaskobs_tcal[:, :, 1:] == 1) & (state.icemaskobs_tcal[:, :, :-1] == 1) , dadx, 0.0)
+        dady = tf.where( (state.icemaskobs_tcal[:, 1:, :] == 1) & (state.icemaskobs_tcal[:, :-1, :] == 1) , dady, 0.0)
 
     if params.tcal_smooth_anisotropy_factor_sl == 1:
-        if params.fix_opti_normalization_issue:
-            REGU_S = (params.tcal_regu_param_slidingco) * 0.5 * (
-                tf.math.reduce_mean(dadx**2) + tf.math.reduce_mean(dady**2)
-            )
-        else:
-            REGU_S = (params.tcal_regu_param_slidingco) * (
-                tf.nn.l2_loss(dadx) + tf.nn.l2_loss(dady)
-            )
+        # if params.fix_opti_normalization_issue:
+        REGU_S = (params.tcal_regu_param_slidingco) * 0.5 * (
+            tf.math.reduce_mean(dadx**2) + tf.math.reduce_mean(dady**2)
+        )
+        # else:
+        #     REGU_S = (params.tcal_regu_param_slidingco) * (
+        #         tf.nn.l2_loss(dadx) + tf.nn.l2_loss(dady)
+        #     )
     else:
-        dadx = (state.slidingco[:, 1:] - state.slidingco[:, :-1])/state.dx
-        dadx = (dadx[1:, :] + dadx[:-1, :]) / 2.0
-        dady = (state.slidingco[1:, :] - state.slidingco[:-1, :])/state.dx
-        dady = (dady[:, 1:] + dady[:, :-1]) / 2.0
+        dadx = (state.slidingco_tcal[:, :, 1:] - state.slidingco_tcal[:, :, :-1])/state.dx
+        dadx = (dadx[:, 1:, :] + dadx[:, :-1, :]) / 2.0
+        dady = (state.slidingco_tcal[:, 1:, :] - state.slidingco_tcal[:, :-1, :])/state.dx
+        dady = (dady[:, :, 1:] + dady[:, :, :-1]) / 2.0
  
         if params.sole_mask:
-            MASK = (state.icemaskobs[1:, 1:] > 0.5) & (state.icemaskobs[1:, :-1] > 0.5) & (state.icemaskobs[:-1, 1:] > 0.5) & (state.icemaskobs[:-1, :-1] > 0.5)
+            MASK = (state.icemaskobs_tcal[:, 1:, 1:] > 0.5) & (state.icemaskobs_tcal[:, 1:, :-1] > 0.5) & (state.icemaskobs_tcal[:, :-1, 1:] > 0.5) & (state.icemaskobs_tcal[:, :-1, :-1] > 0.5)
             dadx = tf.where( MASK, dadx, 0.0)
             dady = tf.where( MASK, dady, 0.0)
  
-        if params.fix_opti_normalization_issue:
-            REGU_S = (params.tcal_regu_param_slidingco) * 0.5 * (
-                (1.0/np.sqrt(params.tcal_smooth_anisotropy_factor_sl))
-                * tf.math.reduce_mean((dadx * state.flowdirx + dady * state.flowdiry)**2)
-                + np.sqrt(params.tcal_smooth_anisotropy_factor_sl)
-                * tf.math.reduce_mean((dadx * state.flowdiry - dady * state.flowdirx)**2)
-            )
-        else:
-            REGU_S = (params.tcal_regu_param_slidingco) * (
-                (1.0/np.sqrt(params.tcal_smooth_anisotropy_factor_sl))
-                * tf.nn.l2_loss((dadx * state.flowdirx + dady * state.flowdiry))
-                + np.sqrt(params.tcal_smooth_anisotropy_factor_sl)
-                * tf.nn.l2_loss((dadx * state.flowdiry - dady * state.flowdirx)) )
+        # if params.fix_opti_normalization_issue:
+        REGU_S = (params.tcal_regu_param_slidingco) * 0.5 * (
+            (1.0/np.sqrt(params.tcal_smooth_anisotropy_factor_sl))
+            * tf.math.reduce_mean((dadx * state.flowdirx_tcal + dady * state.flowdiry_tcal)**2)
+            + np.sqrt(params.tcal_smooth_anisotropy_factor_sl)
+            * tf.math.reduce_mean((dadx * state.flowdiry_tcal - dady * state.flowdirx_tcal)**2)
+        )
+        # else:
+        #     REGU_S = (params.tcal_regu_param_slidingco) * (
+        #         (1.0/np.sqrt(params.tcal_smooth_anisotropy_factor_sl))
+        #         * tf.nn.l2_loss((dadx * state.flowdirx + dady * state.flowdiry))
+        #         + np.sqrt(params.tcal_smooth_anisotropy_factor_sl)
+        #         * tf.nn.l2_loss((dadx * state.flowdiry - dady * state.flowdirx)) )
  
-    REGU_S = REGU_S + 10**10 * tf.math.reduce_mean( tf.where(state.slidingco >= 0, 0.0, state.slidingco**2) ) 
+    REGU_S = REGU_S + 10**10 * tf.math.reduce_mean( tf.where(state.slidingco_tcal >= 0, 0.0, state.slidingco_tcal**2) ) 
     # this last line serve to enforce non-negative slidingco
  
     return REGU_S
@@ -563,26 +564,26 @@ def regu_slidingco(params,state):
 def regu_arrhenius(params,state):
 
 #    if not hasattr(state, "flowdirx"):
-    dadx = (state.arrhenius[:, 1:] - state.arrhenius[:, :-1])/state.dx
-    dady = (state.arrhenius[1:, :] - state.arrhenius[:-1, :])/state.dx
+    dadx = (state.arrhenius_tcal[:, :, 1:] - state.arrhenius_tcal[:, :, :-1])/state.dx
+    dady = (state.arrhenius_tcal[:, 1:, :] - state.arrhenius_tcal[:, :-1, :])/state.dx
 
     if params.sole_mask:                
-        dadx = tf.where( (state.icemaskobs[:, 1:] == 1) & (state.icemaskobs[:, :-1] == 1) , dadx, 0.0)
-        dady = tf.where( (state.icemaskobs[1:, :] == 1) & (state.icemaskobs[:-1, :] == 1) , dady, 0.0)
+        dadx = tf.where( (state.icemaskobs_tcal[:, :, 1:] == 1) & (state.icemaskobs_tcal[:, :, :-1] == 1) , dadx, 0.0)
+        dady = tf.where( (state.icemaskobs_tcal[:, 1:, :] == 1) & (state.icemaskobs_tcal[:, :-1, :] == 1) , dady, 0.0)
     
-    if params.fix_opti_normalization_issue:
-        REGU_S = (params.tcal_regu_param_arrhenius) * 0.5 * (
-            tf.math.reduce_mean(dadx**2) + tf.math.reduce_mean(dady**2)
-        )
-    else:
-        REGU_S = (params.tcal_regu_param_arrhenius) * (
-            tf.nn.l2_loss(dadx) + tf.nn.l2_loss(dady)
-        )
+    # if params.fix_opti_normalization_issue:
+    REGU_A = (params.tcal_regu_param_arrhenius) * 0.5 * (
+        tf.math.reduce_mean(dadx**2) + tf.math.reduce_mean(dady**2)
+    )
+    # else:
+    #     REGU_A = (params.tcal_regu_param_arrhenius) * (
+    #         tf.nn.l2_loss(dadx) + tf.nn.l2_loss(dady)
+    #     )
 
-    REGU_S = REGU_S + 10**10 * tf.math.reduce_mean( tf.where(state.arrhenius >= 0, 0.0, state.arrhenius**2) ) 
+    REGU_A = REGU_A + 10**10 * tf.math.reduce_mean( tf.where(state.arrhenius >= 0, 0.0, state.arrhenius**2) ) 
     # this last line serve to enforce non-negative arrhenius 
         
-    return REGU_S
+    return REGU_A
 
 
 @tf.function()
