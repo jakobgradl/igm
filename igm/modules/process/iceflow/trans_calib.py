@@ -253,8 +253,9 @@ def trans_calib(params, state):
             #################
 
             var_to_opti = [ ]
-            for f in params.tcal_control:
+            for f in [s + "_tcal" for s in params.tcal_control]:
                 var_to_opti.append(vars()[f])
+                # should this be vars(state)[f] ??
 
             # Compute gradient of COST w.r.t. X
             # cost_total = tf.reduce_sum(tf.convert_to_tensor(list(cost.values())))
@@ -264,13 +265,13 @@ def trans_calib(params, state):
             if params.sole_mask:
                 for ii in range(grads.shape[0]):
                     if not "slidingco" == params.tcal_control[ii]:
-                        grads[ii].assign(tf.where((state.icemaskobs > 0.5), grads[ii], 0))
+                        grads[ii].assign(tf.where((state.icemaskobs_tcal > 0.5), grads[ii], 0))
                     else:
-                        grads[ii].assign(tf.where((state.icemaskobs == 1), grads[ii], 0))
+                        grads[ii].assign(tf.where((state.icemaskobs_tcal == 1), grads[ii], 0))
             else:
                 for ii in range(grads.shape[0]):
                     if not "slidingco" == params.tcal_control[ii]:
-                        grads[ii].assign(tf.where((state.icemaskobs > 0.5), grads[ii], 0))
+                        grads[ii].assign(tf.where((state.icemaskobs_tcal > 0.5), grads[ii], 0))
 
             # One step of descent -> this will update input variable X
             optimizer.apply_gradients(
@@ -638,7 +639,7 @@ def compute_divflux_tcal(u, v, h, dx, dy, method='upwind'):
 
 def print_costs(params, state, cost, i):
 
-    vol = ( np.sum(state.thk) * (state.dx**2) / 10**9 ).numpy()
+    vol = ( np.sum(state.thk_tcal[-1]) * (state.dx**2) / 10**9 ).numpy()
     # mean_slidingco = tf.math.reduce_mean(state.slidingco[state.icemaskobs > 0.5])
 
     f = open('costs.dat','a')
