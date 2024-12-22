@@ -313,20 +313,20 @@ def trans_calib(params, state):
 
     print_costs(params, state, cost, i)
 
-    if i % params.tcal_output_freq == 0:
-        if params.tcal_plot2d:
-            update_plot_inversion(params, state, i)
-        if params.tcal_save_iterat_in_ncdf:
-            update_ncdf_optimize(params, state, i)
+    # if i % params.tcal_output_freq == 0:
+    #     if params.tcal_plot2d:
+    #         update_plot_inversion(params, state, i)
+    #     if params.tcal_save_iterat_in_ncdf:
+    #         update_ncdf_optimize(params, state, i)
 
 #    for f in params.tcal_control:
 #        vars(state)[f] = vars()[f] * sc[f]
 
     # now that the ice thickness is optimized, we can fix the bed once for all! (ONLY FOR GROUNDED ICE)
-    state.topg = state.usurf - state.thk
+    # state.topg = state.usurf - state.thk
 
     if not params.tcal_save_result_in_ncdf=="":
-        output_ncdf_optimize_final(params, state)
+        output_ncdf_tcal_final(params, state)
 
     plot_cost_functions() 
 
@@ -816,3 +816,79 @@ def load_tcal_data(params, state):
 
         for obsvar, tcalvar in zip(obs_list, tcal_list):
             vars(state)[tcalvar] = tf.Variable(vars()[obsvar], dtype=tf.float32, trainable=False)
+
+
+
+
+def output_ncdf_tcal_final(params, state):
+    """
+    Write final geology after optimizing
+    """
+    # if params.opti_save_iterat_in_ncdf==False:
+    if "velbase_mag" in params.tcal_vars_to_save:
+        state.velbase_mag_tcal = getmag(state.uvelbase_tcal, state.vvelbase_tcal)
+
+    if "velsurf_mag" in params.tcal_vars_to_save:
+        state.velsurf_mag_tcal = getmag(state.uvelsurf_tcal, state.vvelsurf_tcal)
+
+    if "velsurfobs_mag" in params.tcal_vars_to_save:
+        state.velsurfobs_mag_tcal = getmag(state.uvelsurfobs_tcal, state.vvelsurfobs_tcal)
+
+    if "velsurfdiff_mag" in params.tcal_vars_to_save:
+        vsurf = getmag(state.uvelsurf_tcal, state.vvelsurf_tcal)
+        vsurfobs = getmag(state.uvelsurfobs_tcal, state.vvelsurfobs_tcal)
+        state.velsurfdiff_mag_tcal = vsurf - vsurfobs
+    
+    if "sliding_ratio" in params.tcal_vars_to_save:
+        state.sliding_ratio_tcal = tf.where(state.velsurf_mag_tcal > 10, state.velbase_mag_tcal / state.velsurf_mag_tcal, np.nan)
+
+    if "thkdiff" in params.tcal_vars_to_save:
+        state.thkdiff_tcal = tf.where(tf.math.is_nan(state.thkobs_tcal), np.nan, state.thk_tcal - state.thkobs_tcal)
+
+    if "difffluxdiff" in params.tcal_vars_to_save:
+        ACT = ~tf.math.is_nan(state.divfluxobs_tcal)
+        state.difffluxdiff_tcal = state.divflux_tcal[ACT] - state.divfluxobs_tcal[ACT]
+
+    if "usurfdiff" in params.tcal_vars_to_save:
+        state.usurfdiff_tcal = state.usurf_tcal - state.usurfobs_tcal
+
+    nc = Dataset(
+        params.opti_save_result_in_ncdf,
+        "w",
+        format="NETCDF4",
+    )
+
+    nc.createDimension("time", None)
+    E = nc.createVariable("time", np.dtype("float32").char, ("time",))
+    E.units = "yr"
+    E.long_name = "time"
+    E.axis = "T"
+    E[:] = [float(t) for t in params.tcal_times]
+
+    nc.createDimension("y", len(state.y))
+    E = nc.createVariable("y", np.dtype("float32").char, ("y",))
+    E.units = "m"
+    E.long_name = "y"
+    E.axis = "Y"
+    E[:] = state.y.numpy()
+
+    nc.createDimension("x", len(state.x))
+    E = nc.createVariable("x", np.dtype("float32").char, ("x",))
+    E.units = "m"
+    E.long_name = "x"
+    E.axis = "X"
+    E[:] = state.x.numpy()
+
+    for v in [var+"_tcal" for var in params.tcal_vars_to_save]:
+        if hasattr(state, v):
+            E = nc.createVariable(v-"_tcal", np.dtype("float32").char, ("time", "y", "x"))
+            E.standard_name = v-"_tcal"
+            E[:] = vars(state)[v]
+
+    nc.close()
+
+    os.system(
+        "echo rm "
+        + params.opti_save_result_in_ncdf
+        + " >> clean.sh"
+    )
