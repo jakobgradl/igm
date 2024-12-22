@@ -282,11 +282,11 @@ def trans_calib(params, state):
 
             # get back optimized variables in the pool of state.variables
             if "thk" in params.tcal_control:
-                state.thk = tf.where(state.icemaskobs > 0.5, state.thk, 0)
+                state.thk_tcal = tf.where(state.icemaskobs_tcal > 0.5, state.thk_tcal, 0)
 #                state.thk = tf.where(state.thk < 0.01, 0, state.thk)
 
-            state.divflux = compute_divflux(
-                state.ubar, state.vbar, state.thk, state.dx, state.dx, method=params.tcal_divflux_method
+            state.divflux_tcal = compute_divflux_tcal(
+                state.ubar_tcal, state.vbar_tcal, state.thk_tcal, state.dx, state.dx, method=params.tcal_divflux_method
             )
 
             #state.divflux = tf.where(ACT, state.divflux, 0.0)
@@ -296,11 +296,11 @@ def trans_calib(params, state):
             state.tcomp_optimize[-1] -= time.time()
             state.tcomp_optimize[-1] *= -1
 
-            if i % params.tcal_output_freq == 0:
-                if params.tcal_plot2d:
-                    update_plot_inversion(params, state, i)
-                if params.tcal_save_iterat_in_ncdf:
-                    update_ncdf_optimize(params, state, i)
+            # if i % params.tcal_output_freq == 0:
+            #     if params.tcal_plot2d:
+            #         update_plot_inversion(params, state, i)
+                # if params.tcal_save_iterat_in_ncdf:
+                #     update_ncdf_optimize(params, state, i)
 
             # stopping criterion: stop if the cost no longer decrease
             # if i>params.tcal_nbitmin:
@@ -722,22 +722,22 @@ def _compute_rms_std_optimization(state, i):
         state.rmsdiv = []
         state.stddiv = []
 
-    if hasattr(state, "thkobs"):
-        ACT = ~tf.math.is_nan(state.thkobs)
+    if hasattr(state, "thkobs_tcal"):
+        ACT = ~tf.math.is_nan(state.thkobs_tcal)
         if np.sum(ACT) == 0:
             state.rmsthk.append(0)
             state.stdthk.append(0)
         else:
-            state.rmsthk.append(np.nanmean(state.thk[ACT] - state.thkobs[ACT]))
-            state.stdthk.append(np.nanstd(state.thk[ACT] - state.thkobs[ACT]))
+            state.rmsthk.append(np.nanmean(state.thk_tcal[ACT] - state.thkobs_tcal[ACT]))
+            state.stdthk.append(np.nanstd(state.thk_tcal[ACT] - state.thkobs_tcal[ACT]))
 
     else:
         state.rmsthk.append(0)
         state.stdthk.append(0)
 
-    if hasattr(state, "uvelsurfobs"):
-        velsurf_mag = getmag(state.uvelsurf, state.vvelsurf).numpy()
-        velsurfobs_mag = getmag(state.uvelsurfobs, state.vvelsurfobs).numpy()
+    if hasattr(state, "uvelsurfobs_tcal"):
+        velsurf_mag = getmag(state.uvelsurf_tcal, state.vvelsurf_tcal).numpy()
+        velsurfobs_mag = getmag(state.uvelsurfobs_tcal, state.vvelsurfobs_tcal).numpy()
         ACT = ~np.isnan(velsurfobs_mag)
 
         state.rmsvel.append(
@@ -750,16 +750,16 @@ def _compute_rms_std_optimization(state, i):
         state.rmsvel.append(0)
         state.stdvel.append(0)
 
-    if hasattr(state, "divfluxobs"):
-        state.rmsdiv.append(np.mean(state.divfluxobs[I] - state.divflux[I]))
-        state.stddiv.append(np.std(state.divfluxobs[I] - state.divflux[I]))
+    if hasattr(state, "divfluxobs_tcal"):
+        state.rmsdiv.append(np.mean(state.divfluxobs_tcal[I] - state.divflux_tcal[I]))
+        state.stddiv.append(np.std(state.divfluxobs_tcal[I] - state.divflux_tcal[I]))
     else:
         state.rmsdiv.append(0)
         state.stddiv.append(0)
 
-    if hasattr(state, "usurfobs"):
-        state.rmsusurf.append(np.mean(state.usurf[I] - state.usurfobs[I]))
-        state.stdusurf.append(np.std(state.usurf[I] - state.usurfobs[I]))
+    if hasattr(state, "usurfobs_tcal"):
+        state.rmsusurf.append(np.mean(state.usurf_tcal[I] - state.usurfobs_tcal[I]))
+        state.stdusurf.append(np.std(state.usurf_tcal[I] - state.usurfobs_tcal[I]))
     else:
         state.rmsusurf.append(0)
         state.stdusurf.append(0)
