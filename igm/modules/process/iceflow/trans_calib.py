@@ -154,8 +154,7 @@ def trans_calib(params, state):
             for f in [s + "_tcal" for s in params.tcal_control if s != "topg"]:
                 vars(state)[f] = vars()[f] * sc[f]
 
-            if "topg" in params.tcal_control_const:
-                state.thk_tcal = state.usurf_tcal - state.topg_tcal
+            state.topg_tcal = state.usurf_tcal - state.thk_tcal
 
             fields = [vars(state)[f] for f in params.iflo_fieldin_tcal]
             X = []
@@ -201,8 +200,8 @@ def trans_calib(params, state):
             # misfit between divergence of flux
             if ("divfluxfcz" in params.tcal_cost):
                 cost["divflux"] = cost_divfluxfcz(params, state, i)
-            elif ("divfluxobs" in params.tcal_cost):
-                cost["divflux"] = cost_divfluxobs(params, state, i)
+            # elif ("divfluxobs" in params.tcal_cost):
+            #     cost["divflux"] = cost_divfluxobs(params, state, i)
  
             # misfit between top ice surfaces
             if "usurf" in params.tcal_cost:
@@ -215,6 +214,10 @@ def trans_calib(params, state):
             # Here one enforces non-negative ice thickness, and possibly zero-thickness in user-defined ice-free areas.
             if "thk" in params.tcal_control:
                 cost["thk_positive"] = 10**10 * tf.math.reduce_mean( tf.where(state.thk_tcal >= 0, 0.0, state.thk_tcal**2) )
+
+            # force constant parameters
+            if "topg" in params.tcal_control_const:
+                cost["topg_const"] = 10**10 * tf.math.recude_std(state.topg_tcal, axis=0)
                 
             # if params.tcal_infer_params:
             #     cost["volume"] = cost_vol(params, state)
