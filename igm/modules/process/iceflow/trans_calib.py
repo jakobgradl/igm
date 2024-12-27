@@ -81,6 +81,14 @@ def trans_calib(params, state):
         )
         # vars(state)[var2] *= vars(state)[var1]
 
+    # constant control parameters (these will get the time dimension after initializing the GradientTape):
+    opti_control_tcal_const = [s + "_tcal" for s in params.tcal_control_const]
+    for var1, var2 in zip(params.tcal_control_const, opti_control_tcal_const):
+        vars(state)[var2] = tf.Variable(
+            tf.ones([1] + tf.shape(vars(state)[var1]).numpy().tolist()) * vars(state)[var1],
+            trainable=False
+        )
+
     # # other variables that are required
     # vars_remaining = ["uvelbase", "vvelbase", "ubar", "vbar", "uvelsurf", "vvlesurf"]
     # vars_remaining = [s + "_tcal" for s in vars_remaining]
@@ -107,7 +115,11 @@ def trans_calib(params, state):
         state.thk_tcal = state.thk_tcal * 0.0
 
     if params.tcal_init_zero_thk:
-        state.thk_tcal = state.thk_tcal * 0.0
+        # state.thk_tcal = state.thk_tcal * 0.0
+        state.topg_tcal = tf.expand_dims(
+            tf.math.reduce_min(state.usurf_tcal, axis=0),
+            axis=0
+        )
         
     # this is a density matrix that will be used to weight the cost function
     if hasattr(state, "thkobs_tcal"):
@@ -165,15 +177,17 @@ def trans_calib(params, state):
 
     # main loop
     for i in range(params.tcal_nbitmax):
-        with tf.GradientTape() as t, tf.GradientTape() as s:
+        with tf.GradientTape() as t, tf.GradientTape() as tc, tf.GradientTape() as s:
             state.tcomp_optimize.append(time.time())
             
             if params.tcal_step_size_decay < 1:
                 optimizer.lr = params.tcal_step_size * (params.tcal_step_size_decay ** (i / 100))
 
             # is necessary to remember all operation to derive the gradients w.r.t. control variables
-            for f in [s + "_tcal" for s in params.tcal_control]:
+            for f in [s + "_tcal" for s in params.tcal_control if s not in params.tcal_control_const]:
                 t.watch(vars()[f])
+            for f in [s + "_tcal" for s in params.tcal_control_const]:
+                tc.watch(vars()[f])
 
             # # non-transient control parameters
             # # assign the time-average mean to every timestep
@@ -183,6 +197,11 @@ def trans_calib(params, state):
                 
             for f in [s + "_tcal" for s in params.tcal_control]:
                 vars(state)[f] = vars()[f] * sc[f]
+
+            if "thk" not in params.tcal_control:
+                state.thk_tcal = tf.Variable(
+                    state.usurf_tcal - ( tf.ones_like(state.usurf_tcal) * state.topg_tcal )
+                )
 
             # state.topg_tcal = state.usurf_tcal - state.thk_tcal
 
@@ -220,6 +239,9 @@ def trans_calib(params, state):
             # state.uvelsurf_tcal = U_tcal[:, -1, :, :]
             # state.vvelsurf_tcal = V_tcal[:, -1, :, :]
 
+            U_tcal = tf.Variable(tf.ones_like(state.U_tcal), trainable=False)
+            V_tcal = tf.Variable(tf.ones_like(state.V_tcal), trainable=False)
+
             for iter in range(len(params.tcal_times)):
                 fieldin = [var[iter] for var in fields]
 
@@ -233,16 +255,16 @@ def trans_calib(params, state):
 
                 U, V = Y_to_UV(params, Y[iter])
 
-                state.U_tcal[iter].assign(U[0])
-                state.V_tcal[iter].assign(V[0])
+                U_tcal[iter].assign(U[0])
+                V_tcal[iter].assign(V[0])
             
             # this is strange, but it having state.U instead of U, slidingco is not more optimized ....
-            state.uvelbase_tcal = state.U_tcal[:, 0, :, :]
-            state.vvelbase_tcal = state.V_tcal[:, 0, :, :]
-            state.ubar_tcal = tf.reduce_sum(state.U_tcal * state.vert_weight, axis=1)
-            state.vbar_tcal = tf.reduce_sum(state.V_tcal * state.vert_weight, axis=1)
-            state.uvelsurf_tcal = state.U_tcal[:, -1, :, :]
-            state.vvelsurf_tcal = state.V_tcal[:, -1, :, :]
+            state.uvelbase_tcal = U_tcal[:, 0, :, :]
+            state.vvelbase_tcal = V_tcal[:, 0, :, :]
+            state.ubar_tcal = tf.reduce_sum(U_tcal * state.vert_weight, axis=1)
+            state.vbar_tcal = tf.reduce_sum(V_tcal * state.vert_weight, axis=1)
+            state.uvelsurf_tcal = U_tcal[:, -1, :, :]
+            state.vvelsurf_tcal = V_tcal[:, -1, :, :]
 
             state.divflux_tcal = compute_divflux_tcal(state.ubar_tcal, state.vbar_tcal, state.thk_tcal, state.dx, state.dx, method=params.tcal_divflux_method)
  
@@ -270,8 +292,8 @@ def trans_calib(params, state):
                 cost["usurf"] = misfit_usurf(params, state) 
 
             # misfit between topg and (usurf-thk)
-            if "topg" in params.tcal_control:
-                cost["topg"] = tf.math.reduce_mean( (state.topg_tcal - (state.usurf_tcal - state.thk_tcal)) ** 2)
+            # if "topg" in params.tcal_control:
+            #     cost["topg"] = tf.math.reduce_mean( (state.topg_tcal - (state.usurf_tcal - state.thk_tcal)) ** 2)
 
             # TODO
             # misfit surface elevation change dSdt
@@ -284,18 +306,21 @@ def trans_calib(params, state):
                 cost["icemask"] = 10**10 * tf.math.reduce_mean( tf.where(state.icemaskobs_tcal > 0.5, 0.0, state.thk_tcal**2) )
 
             # Here one enforces non-negative ice thickness, and possibly zero-thickness in user-defined ice-free areas.
-            if "thk" in params.tcal_control:
-                cost["thk_positive"] = 10**10 * tf.math.reduce_mean( tf.where(state.thk_tcal >= 0, 0.0, state.thk_tcal**2) )
+            if "topg" in params.tcal_control:
+                # cost["thk_positive"] = 10**10 * tf.math.reduce_mean( tf.where(state.thk_tcal >= 0, 0.0, state.thk_tcal**2) )
+                cost["thk_positive"] = 10**10 * tf.math.reduce_mean( 
+                    tf.where( state.topg_tcal <= state.usurf_tcal, 0., (state.usurf_tcal-state.topg_tcal)**2 ) 
+                    )
 
             # force constant parameters
-            if "topg" in params.tcal_control_const:
-                cost["topg_const"] = tf.math.reduce_mean(10**7 * tf.math.reduce_std(state.topg_tcal, axis=0))
+            # if "topg" in params.tcal_control_const:
+            #     cost["topg_const"] = tf.math.reduce_mean(10**7 * tf.math.reduce_std(state.topg_tcal, axis=0))
                 
             # if params.tcal_infer_params:
             #     cost["volume"] = cost_vol(params, state)
     
             # Here one adds a regularization terms for the bed toporgraphy to the cost function
-            if "thk" in params.tcal_control:
+            if "topg" in params.tcal_control:
                 cost["thk_regu"] = regu_thk(params, state)
 
             # Here one adds a regularization terms for slidingco to the cost function
@@ -328,13 +353,16 @@ def trans_calib(params, state):
             #################
 
             var_to_opti = [ ]
-            for f in [s + "_tcal" for s in params.tcal_control]:
+            var_const_to_opti = []
+            for f in [s + "_tcal" for s in params.tcal_control if s not in params.tcal_control_const]:
                 var_to_opti.append(vars()[f])
-                # should this be vars(state)[f] ?? -> Nope, it's correct like this
+            for f in [s + "_tcal" for s in params.tcal_control_const]:
+                var_const_to_opti.append(vars()[f])
 
             # Compute gradient of COST w.r.t. X
             # cost_total = tf.reduce_sum(tf.convert_to_tensor(list(cost.values())))
             grads = tf.Variable(t.gradient(cost_total, var_to_opti))
+            grads_const = tf.Variable(tc.gradient(cost_total, var_const_to_opti))
 
             # this serve to restict the optimization of controls to the mask
             if params.sole_mask:
@@ -352,12 +380,19 @@ def trans_calib(params, state):
             optimizer.apply_gradients(
                 zip([grads[i] for i in range(grads.shape[0])], var_to_opti)
             )
+            optimizer.apply_gradients(
+                zip([grads_const[i] for i in range(grads_const.shape[0])], var_const_to_opti)
+            )
 
             ###################
 
             # get back optimized variables in the pool of state.variables
-            if "thk" in params.tcal_control:
-                state.thk_tcal = tf.where(state.icemaskobs_tcal > 0.5, state.thk_tcal, 0)
+            if "topg" in params.tcal_control_const:
+                state.topg_tcal = tf.expand_dims(tf.where(
+                    tf.math.reduce_min(state.icemaskobs_tcal, axis=0) == 0.0, 
+                    tf.math.reduce_min(state.usurfobs_tcal, axis=0),
+                    state.topg_tcal[0]
+                    ), axis=0)
                 # state.thk = tf.where(state.thk < 0.01, 0, state.thk)
                 # thk_mask = tf.where(state.icemaskobs_tcal > 0.5, True, False)
                 # thk_update = tf.where(thk_mask, state.thk_tcal, 0.)
