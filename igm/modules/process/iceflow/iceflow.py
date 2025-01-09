@@ -47,18 +47,21 @@ from igm.modules.utils import *
 from .params_pretraining import *
 from .params_optimize import *
 from .params_iceflow import *
+from .params_trans_calib import *
 from .emulate import *
 from .solve import *
 from .diagnostic import *
 from .utils import *
 from .optimize import *
 from .pretraining import *
+from .trans_calib import *
 
 def params(parser):
 
     params_pretraining(parser)
     params_optimize(parser)
     params_iceflow(parser)
+    params_tcal(parser)
 
 def initialize(params, state):
     # This makes it so that if the user included the optimize module, this intializer will not be called again.
@@ -102,6 +105,11 @@ def initialize(params, state):
         state.it = -1
         update_iceflow_emulator(params, state)
         optimize(params, state)
+
+    if params.iflo_run_transient_calibration:
+        state.it = -1
+        update_iceflow_emulator(params, state)
+        trans_calib(params, state)
 
 def update(params, state):
     if hasattr(state, "logger"):
