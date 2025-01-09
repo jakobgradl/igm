@@ -394,8 +394,8 @@ def trans_calib(params, state):
                 for ii in range(grads_const.shape[0]):
                     if not "slidingco" == params.tcal_control_const[ii]:
                         grads_const[ii].assign(tf.where(
-                            # tf.expand_dims(tf.math.reduce_min(state.icemaskobs_tcal, axis=0),axis=0) > 0.5,
-                            tf.expand_dims(tf.math.reduce_mean(state.icemaskobs_tcal, axis=0),axis=0) > 0., 
+                            tf.expand_dims(tf.math.reduce_min(state.icemaskobs_tcal, axis=0),axis=0) > 0.5,
+                            # tf.expand_dims(tf.math.reduce_mean(state.icemaskobs_tcal, axis=0),axis=0) > 0., 
                             grads_const[ii], 
                             0.))
                         
