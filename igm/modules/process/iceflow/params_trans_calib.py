@@ -14,6 +14,12 @@ def params_tcal(parser):
         default=[2099, 2100],
         help="List of timesteps (type integer) used in transient calibration",
     )
+    parser.add_argument(
+        "--tcal_obs_list",
+        type=list,
+        default=["uvelsurf", "vvelsurf", "thk", "usurf", "smb"],
+        help="List of observed variables used in transient calibration",
+    )
 
     parser.add_argument(
         "--tcal_init_zero_thk",
@@ -21,9 +27,15 @@ def params_tcal(parser):
         default="False",
         help="Initialize the optimization with zero ice thickness",
     )
+    parser.add_argument(
+        "--tcal_init_const_sl",
+        type=str2bool, 
+        default="False",
+        help="Initialize the optimization with spatially constant slidingco"
+    )
 
     parser.add_argument(
-        "--tcal_control",
+        "--tcal_control_trans",
         type=list,
         default=["topg", "thk", "usurf", "slidingco", "arrhenius"],
         help="List of control parameters"
@@ -43,7 +55,7 @@ def params_tcal(parser):
     parser.add_argument(
         "--tcal_step_size",
         type=float,
-        default=1.0,
+        default=0.001,
         help="Step size for optimization"
     )
     parser.add_argument(
@@ -128,6 +140,13 @@ def params_tcal(parser):
     )
 
     parser.add_argument(
+        "--tcal_thk_slope_type",
+        type=str,
+        default="superbee",
+        help="Type of slope limiter for the dhdt cost function (godunov or superbee)",
+    )
+
+    parser.add_argument(
         "--tcal_smooth_anisotropy_factor",
         type=float,
         default=0.2,
@@ -175,6 +194,12 @@ def params_tcal(parser):
         type=float,
         default=1.0,
         help="Confidence/STD of the flux divergence as input data for the optimization (if 0, divfluxobs_std field must be given)",
+    )
+    parser.add_argument(
+        "--tcal_dSdtobs_std",
+        type=float,
+        default=1.0,
+        help="Confidence/STD of the surface elevation change"
     )
     parser.add_argument(
         "--tcal_vol_std",
