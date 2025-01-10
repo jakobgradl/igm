@@ -36,6 +36,8 @@ def trans_calib(params, state):
 
     if "topg" in params.tcal_control:
         assert "topg" in params.tcal_control_const
+    else:
+        assert hasattr(state, "topgobs_tcal")
 
     # make sure that there are lease some profiles in thkobs
     if "thk" in params.tcal_cost:
@@ -109,22 +111,20 @@ def trans_calib(params, state):
 
     ###### PREPARE DATA PRIOR OPTIMIZATIONS
  
-    # TODO do something about this (will probably get a bigger/different role in the trans calib)
-    # if "divfluxobs" in tcal_cost:
-    #     if not hasattr(state, "divfluxobs_tcal"):
-    #         state.divfluxobs = state.smb - state.dhdt
-
-    if hasattr(state, "thkinit"):
-        state.thk_tcal = tf.ones_like(state.thk_tcal) * state.thkinit 
+    if "topg" not in params.tcal_control:
+        state.topg_tcal = state.topgobs_tcal
     else:
-        state.thk_tcal = state.thk_tcal * 0.0
+        if hasattr(state, "thkinit"):
+            state.thk_tcal = tf.ones_like(state.thk_tcal) * state.thkinit 
+        else:
+            state.thk_tcal = state.thk_tcal * 0.0
 
-    if params.tcal_init_zero_thk:
-        # state.thk_tcal = state.thk_tcal * 0.0
-        state.topg_tcal = tf.expand_dims(
-            tf.math.reduce_min(state.usurfobs_tcal, axis=0),
-            axis=0
-        )
+        if params.tcal_init_zero_thk:
+            # state.thk_tcal = state.thk_tcal * 0.0
+            state.topg_tcal = tf.expand_dims(
+                tf.math.reduce_min(state.usurfobs_tcal, axis=0),
+                axis=0
+            )
 
     if params.tcal_init_const_sl:
         state.slidingco_tcal = tf.ones_like(state.slidingco_tcal) * 0.045
@@ -152,7 +152,8 @@ def trans_calib(params, state):
             state.dens_thkobs_tcal = tf.ones_like(state.thkobs_tcal)
         
     # force zero slidingco in the floating areas
-    state.slidingco_tcal = tf.Variable(tf.where( state.icemaskobs_tcal == 2, 0.0, state.slidingco_tcal))
+    if "slidingco" not in params.tcal_control_const:
+        state.slidingco_tcal = tf.Variable(tf.where( state.icemaskobs_tcal == 2, 0.0, state.slidingco_tcal))
     
     # # this is generally not active in optimize
     # # this will infer values for slidingco and convexity weight based on the ice velocity and an empirical relationship from test glaciers with thickness profiles
