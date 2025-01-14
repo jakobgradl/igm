@@ -42,8 +42,9 @@ def optimize(params, state):
     assert ("usurf" in params.opti_cost) == ("usurf" in params.opti_control)
 
     # make sure that there are lease some profiles in thkobs
-    if tf.reduce_all(tf.math.is_nan(state.thkobs)):
-        if "thk" in params.opti_cost:
+    if "thk" in params.opti_cost:
+        if tf.reduce_all(tf.math.is_nan(state.thkobs)):
+            print("\n    WARNING: No thickness observation data available; removing thk from params.opti_cost    \n")
             params.opti_cost.remove("thk")
 
     ###### PREPARE DATA PRIOR OPTIMIZATIONS
