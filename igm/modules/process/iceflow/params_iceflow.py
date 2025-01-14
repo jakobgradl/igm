@@ -16,6 +16,12 @@ def params_iceflow(parser):
         default=False,
         help="Run the data assimilation scheme",
     )
+    parser.add_argument(
+        "--iflo_run_transient_calibration",
+        type=str2bool,
+        default=False,
+        help="Run the tranient calibration scheme",
+    )
 
     # type of ice flow computations
     parser.add_argument(
@@ -178,13 +184,13 @@ def params_iceflow(parser):
     parser.add_argument(
         "--iflo_retrain_emulator_nbit_init",
         type=float,
-        default=1,
+        default=5,
         help="Number of iterations done at the first time step for the retraining of the emulator",
     )
     parser.add_argument(
         "--iflo_retrain_emulator_nbit",
         type=float,
-        default=1,
+        default=5,
         help="Number of iterations done at each time step for the retraining of the emulator",
     )
     parser.add_argument(
