@@ -201,7 +201,8 @@ def update_iceflow_emulator(params, state):
                     if state.it <= 0:
                         print_freq = 100
                     elif state.it > 0:
-                        print_freq = params.iflo_retrain_emulator_nbit
+                        # print_freq = params.iflo_retrain_emulator_nbit
+                        print_freq = 25
 
                     if (epoch + 1) % print_freq == 0:
                         print("---------- > ", tf.reduce_mean(C_shear).numpy(), tf.reduce_mean(C_slid).numpy(), tf.reduce_mean(C_grav).numpy(), tf.reduce_mean(C_float).numpy())
