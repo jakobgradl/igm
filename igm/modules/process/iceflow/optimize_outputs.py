@@ -23,9 +23,24 @@ def update_ncdf_optimize(params, state, it):
 
     if "velsurfobs_mag" in params.opti_vars_to_save:
         state.velsurfobs_mag = getmag(state.uvelsurfobs, state.vvelsurfobs)
+
+    if "velsurfdiff_mag" in params.opti_vars_to_save:
+        vsurf = getmag(state.uvelsurf, state.vvelsurf)
+        vsurfobs = getmag(state.uvelsurfobs, state.vvelsurfobs)
+        state.velsurfdiff_mag = vsurf - vsurfobs
     
     if "sliding_ratio" in params.opti_vars_to_save:
         state.sliding_ratio = tf.where(state.velsurf_mag > 10, state.velbase_mag / state.velsurf_mag, np.nan)
+
+    if "thkdiff" in params.opti_vars_to_save:
+        state.thkdiff = tf.where(tf.math.is_nan(state.thkobs), np.nan, state.thk - state.thkobs)
+
+    if "difffluxdiff" in params.opti_vars_to_save:
+        ACT = ~tf.math.is_nan(state.divfluxobs)
+        state.difffluxdiff = state.divflux[ACT] - state.divfluxobs[ACT]
+
+    if "usurfdiff" in params.opti_vars_to_save:
+        state.usurfdiff = state.usurf - state.usurfobs
 
     if it == 0:
         nc = Dataset(
@@ -91,9 +106,24 @@ def output_ncdf_optimize_final(params, state):
 
         if "velsurfobs_mag" in params.opti_vars_to_save:
             state.velsurfobs_mag = getmag(state.uvelsurfobs, state.vvelsurfobs)
+
+        if "velsurfdiff_mag" in params.opti_vars_to_save:
+            vsurf = getmag(state.uvelsurf, state.vvelsurf)
+            vsurfobs = getmag(state.uvelsurfobs, state.vvelsurfobs)
+            state.velsurfdiff_mag = vsurf - vsurfobs
         
         if "sliding_ratio" in params.opti_vars_to_save:
             state.sliding_ratio = tf.where(state.velsurf_mag > 10, state.velbase_mag / state.velsurf_mag, np.nan)
+
+        if "thkdiff" in params.opti_vars_to_save:
+            state.thkdiff = tf.where(tf.math.is_nan(state.thkobs), np.nan, state.thk - state.thkobs)
+
+        if "difffluxdiff" in params.opti_vars_to_save:
+            ACT = ~tf.math.is_nan(state.divfluxobs)
+            state.difffluxdiff = state.divflux[ACT] - state.divfluxobs[ACT]
+
+        if "usurfdiff" in params.opti_vars_to_save:
+            state.usurfdiff = state.usurf - state.usurfobs
 
     nc = Dataset(
         params.opti_save_result_in_ncdf,
@@ -148,7 +178,7 @@ def plot_cost_functions():
         costs[:, i] -= np.min(costs[:, i])
         costs[:, i] /= np.where(np.max(costs[:, i]) == 0, 1.0, np.max(costs[:, i]))
 
-    colors = ["k", "r", "b", "g", "c", "m", "k", "r", "b", "g", "c", "m"]
+    colors = ["k", "r", "b", "g", "c", "m", "orange", "brown", "k", "r", "b", "g", "c", "m"]
   
     fig = plt.figure(figsize=(10, 10))
     for i in range(costs.shape[1]):
