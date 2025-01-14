@@ -20,6 +20,18 @@ from .optimize_params_cook import *
  
 def optimize(params, state):
 
+    # if we want to invert from a simulation output/optimisation output
+    if params.opti_load_from_sim:
+        state.thkobs = state.thkinit = state.thk
+        state.usurfobs = state.usurf
+        # state.velsurfobs = state.velsurf_mag
+        state.divfluxobs = state.divflux
+        state.uvelsurfobs = state.uvelsurf
+        state.vvelsurfobs = state.vvelsurf
+        if hasattr(params, "lncd_time_load"):
+            state.icemask = tf.where(state.thk == 0.0, 0.0, 1.0)
+        state.icemaskobs = state.icemask
+
     ###### PERFORM CHECKS PRIOR OPTIMIZATIONS
 
     # from scipy.ndimage import gaussian_filter

@@ -62,11 +62,21 @@ def params(parser):
         help="Y top coordinate for cropping the NetCDF data",
         default=10**20,
     )
+    parser.add_argument(
+        "--lncd_time_load",
+        type=int,
+        help="timestep to load",
+        default=np.nan,
+    )
 
 
 def initialize(params, state):
+
     if hasattr(state, "logger"):
         state.logger.info("LOAD NCDF file")
+
+    if hasattr(params, "time_start"):
+        params.lncd_time_load = params.time_start
 
     nc = Dataset(params.lncd_input_file, "r")
 
@@ -80,7 +90,7 @@ def initialize(params, state):
 
     if "time" in nc.variables:
         TIME = np.squeeze(nc.variables["time"]).astype("float32")
-        I = np.where(TIME == params.time_start)[0][0]
+        I = np.where(TIME == params.lncd_time_load)[0][0]
         istheretime = True
     else:
         istheretime = False
