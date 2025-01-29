@@ -600,9 +600,25 @@ def misfit_dSdt(params,state):
 
     ACT = np.logical_and(maskthk,masksmbice)
 
+    # # Forward difference on usurf
+    # # this checks consistency on absolute surface change
+    # return 0.5 * tf.reduce_mean(
+    #     (
+    #         (state.usurf_tcal[1:] - state.usurf_tcal[:-1])[ACT]
+            # - state.dt_tcal * (state.smbobs_tcal[:-1][ACT] - state.divflux_tcal_slopelim[:-1][ACT])
+    #     )
+    # ) ** 2
+
+    # Centered difference on staggered grid
+    # this checks consistency on dSdt
+    # this is same as dSdt_obs - dSdt_sim = 0
     return 0.5 * tf.reduce_mean(
         (
-            (state.usurf_tcal[1:] - state.usurf_tcal[:-1])[ACT] - state.dt_tcal * (state.smbobs_tcal[:-1][ACT] - state.divflux_tcal_slopelim[ACT])
+            (state.usurf_tcal[1:] - state.usurf_tcal[:-1])[ACT] / state.dt_tcal
+            - (
+                0.5 * (state.smbobs_tcal[:-1][ACT] + state.smbobs_tcal[1:][ACT]) 
+                - 0.5 * (state.divflux_tcal_slopelim[:-1][ACT] + state.divflux_tcal_slopelim[1:][ACT])
+                )
         )
     ) ** 2
 
@@ -999,17 +1015,17 @@ def compute_divflux_slope_limiter_tcal(u, v, h, dx, dy, dt, slope_type):
      https://github.com/python-hydro/hydro_examples
     """
     
-    u = tf.concat( [u[:-1,:, 0:1], 0.5 * (u[:-1,:, :-1] + u[:-1,:, 1:]), u[:-1,:, -1:]], 2 )  # has shape (nt-1,ny,nx+1)
-    v = tf.concat( [v[:-1,0:1, :], 0.5 * (v[:-1,:-1, :] + v[:-1,1:, :]), v[:-1,-1:, :]], 1 )  # has shape (nt-1,ny+1,nx)
+    u = tf.concat( [u[:,:, 0:1], 0.5 * (u[:,:, :-1] + u[:,:, 1:]), u[:,:, -1:]], 2 )  # has shape (nt,ny,nx+1)
+    v = tf.concat( [v[:,0:1, :], 0.5 * (v[:,:-1, :] + v[:,1:, :]), v[:,-1:, :]], 1 )  # has shape (nt,ny+1,nx)
 
-    Hx = tf.pad(h[:-1], [[0,0],[0,0],[2,2]], 'CONSTANT') # (nt-1,ny,nx+4)
-    Hy = tf.pad(h[:-1], [[0,0],[2,2],[0,0]], 'CONSTANT') # (nt-1,ny+4,nx)
+    Hx = tf.pad(h[:-1], [[0,0],[0,0],[2,2]], 'CONSTANT') # (nt,ny,nx+4)
+    Hy = tf.pad(h[:-1], [[0,0],[2,2],[0,0]], 'CONSTANT') # (nt,ny+4,nx)
     
-    sigpx = (Hx[:,:,2:]-Hx[:,:,1:-1])/dx    # (nt-1,ny,nx+2)
-    sigmx = (Hx[:,:,1:-1]-Hx[:,:,:-2])/dx   # (nt-1,ny,nx+2) 
+    sigpx = (Hx[:,:,2:]-Hx[:,:,1:-1])/dx    # (nt,ny,nx+2)
+    sigmx = (Hx[:,:,1:-1]-Hx[:,:,:-2])/dx   # (nt,ny,nx+2) 
 
-    sigpy = (Hy[:,2:,:] -Hy[:,1:-1,:])/dy   # (nt-1,ny+2,nx)
-    sigmy = (Hy[:,1:-1,:]-Hy[:,:-2,:])/dy   # (nt-1,ny+2,nx) 
+    sigpy = (Hy[:,2:,:] -Hy[:,1:-1,:])/dy   # (nt,ny+2,nx)
+    sigmy = (Hy[:,1:-1,:]-Hy[:,:-2,:])/dy   # (nt,ny+2,nx) 
 
     if slope_type == "godunov":
  
@@ -1031,16 +1047,16 @@ def compute_divflux_slope_limiter_tcal(u, v, h, dx, dy, dt, slope_type):
         sig2y  = minmod( sigmy , 2.0*sigpy )
         slopey = maxmod( sig1y, sig2y)
 
-    w   = Hx[:,:,1:-2] + 0.5*dx*(1.0 - u*dt/dx)*slopex[:,:,:-1]      #  (nt-1,ny,nx+1)      
-    e   = Hx[:,:,2:-1] - 0.5*dx*(1.0 + u*dt/dx)*slopex[:,:,1:]       #  (nt-1,ny,nx+1)    
+    w   = Hx[:,:,1:-2] + 0.5*dx*(1.0 - u*dt/dx)*slopex[:,:,:-1]      #  (nt,ny,nx+1)      
+    e   = Hx[:,:,2:-1] - 0.5*dx*(1.0 + u*dt/dx)*slopex[:,:,1:]       #  (nt,ny,nx+1)    
     
-    s   = Hy[:,1:-2,:] + 0.5*dy*(1.0 - v*dt/dy)*slopey[:,:-1,:]      #  (nt-1,ny+1,nx)      
-    n   = Hy[:,2:-1,:] - 0.5*dy*(1.0 + v*dt/dy)*slopey[:,1:,:]       #  (nt-1,ny+1,nx)    
+    s   = Hy[:,1:-2,:] + 0.5*dy*(1.0 - v*dt/dy)*slopey[:,:-1,:]      #  (nt,ny+1,nx)      
+    n   = Hy[:,2:-1,:] - 0.5*dy*(1.0 + v*dt/dy)*slopey[:,1:,:]       #  (nt,ny+1,nx)    
      
-    Qx = u * tf.where(u > 0, w, e)  #  (nt-1,ny,nx+1)   
-    Qy = v * tf.where(v > 0, s, n)  #  (nt-1,ny+1,nx)   
+    Qx = u * tf.where(u > 0, w, e)  #  (nt,ny,nx+1)   
+    Qy = v * tf.where(v > 0, s, n)  #  (nt,ny+1,nx)   
      
-    return (Qx[:, :, 1:] - Qx[:, :, :-1]) / dx + (Qy[:, 1:, :] - Qy[:, :-1, :]) / dy  # (nt-1,ny,nx)
+    return (Qx[:, :, 1:] - Qx[:, :, :-1]) / dx + (Qy[:, 1:, :] - Qy[:, :-1, :]) / dy  # (nt,ny,nx)
 
 
 
