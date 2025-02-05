@@ -124,11 +124,20 @@ def optimize(params, state):
 
             X = fieldin_to_X(params, fieldin)
 
+            if params.iflo_exclude_borders>0:
+                iz = params.iflo_exclude_borders
+                X = tf.pad(X, [[0, 0], [iz, iz], [iz, iz], [0, 0]], "SYMMETRIC")
+        
             # evalutae th ice flow emulator                
             if params.iflo_multiple_window_size==0:
                 Y = state.iceflow_model(X)
             else:
                 Y = state.iceflow_model(tf.pad(X, state.PAD, "CONSTANT"))[:, :Ny, :Nx, :]
+
+            if params.iflo_exclude_borders>0:
+                iz = params.iflo_exclude_borders
+                Y = Y[:, iz:-iz, iz:-iz, :]
+                X = X[:, iz:-iz, iz:-iz, :]
 
             U, V = Y_to_UV(params, Y)
 
