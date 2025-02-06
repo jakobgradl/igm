@@ -197,6 +197,10 @@ def optimize(params, state):
             # Here one adds a regularization terms for arrhenius to the cost function
             if "arrhenius" in params.opti_control:
                 cost["arrh_regu"] = regu_arrhenius(params, state) 
+
+            # set upper bound to ice flow velocity
+            if params.opti_force_max_velbar > 0.0:
+                cost["max_velbar"] = force_max_velbar(params, state)
   
             cost_total = tf.reduce_sum(tf.convert_to_tensor(list(cost.values())))
 
@@ -551,6 +555,17 @@ def regu_arrhenius(params,state):
     # this last line serve to enforce non-negative arrhenius 
         
     return REGU_S
+
+
+def force_max_velbar(params, state):
+
+    velbar = getmag(state.ubar, state.vbar)
+
+    velbar = velbar - params.opti_force_max_velbar
+
+    cost = tf.reduce_mean(velbar) ** 2
+
+    return cost
 
 ##################################
 

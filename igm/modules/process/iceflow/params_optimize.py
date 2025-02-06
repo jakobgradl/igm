@@ -270,4 +270,9 @@ def params_optimize(parser):
         help="If the input file doesn't have any -obs data (like the output of a prior optimisation/simulation)"
     )
 
-    
+    parser.add_argument(
+        "--opti_force_max_velbar",
+        type=float,
+        default=0.0,
+        help="Penalize flow velocities above a threshold"
+    )
