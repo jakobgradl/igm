@@ -234,11 +234,22 @@ def trans_calib(params, state):
 
                 X[iter] = fieldin_to_X(params, fieldin)
 
+                if params.iflo_exclude_borders>0:
+                    iz = params.iflo_exclude_borders
+                    XX = tf.pad(X[iter], [[0, 0], [iz, iz], [iz, iz], [0, 0]], "SYMMETRIC")
+                else:
+                    XX = X[iter]
+
                 # evalutae th ice flow emulator                
                 if params.iflo_multiple_window_size==0:
-                    Y[iter] = state.iceflow_model(X[iter])
+                    YY = state.iceflow_model(XX)
                 else:
-                    Y[iter] = state.iceflow_model(tf.pad(X, state.PAD, "CONSTANT"))[:, :Ny, :Nx, :]
+                    YY = state.iceflow_model(tf.pad(XX, state.PAD, "CONSTANT"))[:, :Ny, :Nx, :]
+
+                if params.iflo_exclude_borders>0:
+                    iz = params.iflo_exclude_borders
+                    Y[iter] = YY[:, iz:-iz, iz:-iz, :]
+                    # X[iter] = XX[:, iz:-iz, iz:-iz, :]
 
                 U, V = Y_to_UV(params, Y[iter])
 
