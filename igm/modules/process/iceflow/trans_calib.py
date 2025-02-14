@@ -354,7 +354,8 @@ def trans_calib(params, state):
             if "arrhenius" in params.tcal_control:
                 cost["arrh_regu"] = regu_arrhenius(params, state) 
   
-            cost_total = tf.reduce_sum(tf.convert_to_tensor(list(cost.values())))
+            if not params.tcal_total_cost_with_physics:
+                cost_total = tf.reduce_sum(tf.convert_to_tensor(list(cost.values())))
 
             # Here one allow retraining of the ice flow emaultor
             cost["glen"] = tf.reduce_mean(tf.zeros(3))
@@ -385,7 +386,8 @@ def trans_calib(params, state):
                 var_const_to_opti.append(vars()[f])
 
             # Compute gradient of COST w.r.t. X
-            # cost_total = tf.reduce_sum(tf.convert_to_tensor(list(cost.values())))
+            if params.tcal_total_cost_with_physics:
+                cost_total = tf.reduce_sum(tf.convert_to_tensor(list(cost.values())))
             grads = tf.Variable(t.gradient(cost_total, var_trans_to_opti))
             grads_const = tf.Variable(tc.gradient(cost_total, var_const_to_opti))
 

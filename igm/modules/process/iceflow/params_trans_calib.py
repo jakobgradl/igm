@@ -339,4 +339,9 @@ def params_tcal(parser):
     #     default=False,
     #     help="formerly, the oce was mixing reduce_mean and l2_loss leadinf to dependence to the resolution of the grid",
     # )
-    
+    parser.add_argument(
+        "--tcal_total_cost_with_physics",
+        type=str2bool,
+        default=False,
+        help="Is the physics loss part of the total cost or not?"
+    )
