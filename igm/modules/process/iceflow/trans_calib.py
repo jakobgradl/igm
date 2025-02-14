@@ -326,7 +326,7 @@ def trans_calib(params, state):
             # dynamical connection between the timesteps
             # if "dSdt" in params.tcal_cost:
             if len(params.tcal_times) > 1:
-                cost["dSdt"] = misfit_dSdt(params, state)
+                cost["mass_cons"] = cost_mass_conservation(params, state)
 
             # force zero thikness outisde the mask
             if "icemask" in params.tcal_cost:
@@ -597,7 +597,7 @@ def misfit_usurf(params,state):
     )
 
 # @tf.function()
-def misfit_dSdt(params,state):
+def cost_mass_conservation(params,state):
 
     state.divflux_tcal_slopelim = compute_divflux_slope_limiter_tcal(
             state.ubar_tcal, state.vbar_tcal, state.thk_tcal, state.dx, state.dx, state.dt_tcal, slope_type=params.tcal_thk_slope_type
