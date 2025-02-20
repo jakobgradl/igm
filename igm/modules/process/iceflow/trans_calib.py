@@ -590,10 +590,11 @@ def cost_divfluxfcz(params,state,i):
 def misfit_usurf(params,state):
 
     ACT = state.icemaskobs_tcal > 0.5
+    REL = ~tf.math.is_nan(state.usurfobs_tcal)
 
     return 0.5 * tf.reduce_mean(
         (
-            (state.usurf_tcal[ACT] - state.usurfobs_tcal[ACT])
+            (state.usurf_tcal[ACT & REL] - state.usurfobs_tcal[ACT & REL])
             / params.tcal_usurfobs_std
         )
         ** 2
