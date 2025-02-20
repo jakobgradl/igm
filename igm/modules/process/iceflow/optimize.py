@@ -177,6 +177,9 @@ def optimize(params, state):
             if "usurf" in params.opti_cost:
                 cost["usurf"] = misfit_usurf(params, state) 
 
+            if "mass_cons" in params.opti_cost:
+                cost["mass_cons"] = cost_mass_conservation(params, state)
+
             # force zero thikness outisde the mask
             if "icemask" in params.opti_cost:
                 cost["icemask"] = 10**10 * tf.math.reduce_mean( tf.where(state.icemaskobs > 0.5, 0.0, state.thk**2) )
@@ -405,6 +408,46 @@ def misfit_usurf(params,state):
         )
         ** 2
     )
+
+
+# @tf.function()
+def cost_mass_conservation(params,state):
+
+    # masksmb = ~tf.math.is_nan(state.smbobs_tcal[:-1])
+    # maskice = state.icemaskobs_tcal[:-1] > 0.5
+    # masksmbice = np.logical_and(masksmb,maskice)
+    
+    # maskthk1 = state.usurf_tcal[1:] > 0.
+    # maskthk2 = state.usurf_tcal[:-1] > 0.
+    # maskthk = np.logical_and(maskthk1,maskthk2)
+
+    # ACT = np.logical_and(maskthk,masksmbice)
+
+    divflux = compute_divflux(
+        state.ubar, state.vbar, state.thk, state.dx, state.dx, method=params.opti_divflux_method
+    )
+
+    ACT = state.icemaskobs > 0.5
+
+    # grad(h * v_bar) = smb
+    COST_D = 0.5 * 100 * tf.reduce_mean((divflux[ACT] / params.opti_divfluxobs_std) ** 2)
+
+    COST_D += 0.5 * 100 * tf.reduce_mean(
+            tf.math.log( ((divflux[ACT] / params.opti_divfluxobs_std) ** 2) + 1 )
+        )
+
+    # if not hasattr(state, "smb"):
+    #     state.smb = tf.zeros_like(state.thk)
+
+    # return 0.5 * tf.reduce_mean(
+    #     (
+    #         state.divfluxcfz[ACT] - state.smb[ACT]
+    #     )
+    # ) ** 2
+
+    return COST_D
+
+
 
 def cost_vol(params,state):
 
