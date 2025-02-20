@@ -328,6 +328,9 @@ def trans_calib(params, state):
             if len(params.tcal_times) > 1:
                 cost["mass_cons"] = cost_mass_conservation(params, state)
 
+            if "cumul_dS" in params.tcal_const:
+                cost["cumul_dS"] = misfit_cumul_dS(params, state)
+
             # force zero thikness outisde the mask
             if "icemask" in params.tcal_cost:
                 cost["icemask"] = 10**10 * tf.math.reduce_mean( tf.where(state.icemaskobs_tcal > 0.5, 0.0, state.thk_tcal**2) )
@@ -659,6 +662,20 @@ def cost_mass_conservation(params,state):
 #            ( (state.volumes[ACT] - ModVols[ACT]) / state.volume_weights[ACT]  )** 2
 #     )
 #     return cost
+
+
+def misfit_cumul_dS(params, state):
+    ave_cumul_dS_tcal = state.usurf_tcal[1:] - state.usurf_tcal[:-1]
+    ave_cumul_dS_tcal = tf.reduce_mean(
+        tf.reduce_mean(ave_cumul_dS_tcal[state.icemask_tcal[1:]==1], axis=1),
+        axis=1)
+    
+    cost = 0.5 * tf.reduce_mean(
+        ( (ave_cumul_dS_tcal - state.ave_comul_dSobs_tcal) / params.tcal_dSobs_std ) ** 2
+    )
+
+    return cost
+
 
 def regu_thk(params,state):
 
