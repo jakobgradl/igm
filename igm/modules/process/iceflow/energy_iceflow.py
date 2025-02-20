@@ -102,7 +102,11 @@ def _stag8(B):
 
 
 def iceflow_energy(params, U, V, fieldin):
-    thk, usurf, arrhenius, slidingco, dX = fieldin
+    if "icemask" in params.iflo_fieldin:
+        thk, usurf, arrhenius, slidingco, dX, icemask = fieldin
+    else:
+        thk, usurf, arrhenius, slidingco, dX = fieldin
+        icemask = None
 
     return _iceflow_energy(
         U,
@@ -112,6 +116,7 @@ def iceflow_energy(params, U, V, fieldin):
         arrhenius,
         slidingco,
         dX,
+        icemask,
         params.iflo_Nz,
         params.iflo_vert_spacing,
         params.iflo_exp_glen,
@@ -140,6 +145,7 @@ def _iceflow_energy(
     arrhenius,
     slidingco,
     dX,
+    icemask,
     Nz,
     vert_spacing,
     exp_glen,
@@ -345,7 +351,13 @@ def _iceflow_energy(
 
     # C_pen = 10000 * tf.where(thk>0,0.0, tf.reduce_sum( tf.abs(U), axis=1)**2 )
 
-    return C_shear, C_slid, C_grav, C_float
+    if icemask == None:
+        C_mask = 0.0
+    else:
+        C_mask = 0.0
+        # C_mask =  tf.where(icemask > 0.5, 0.0, getmag3d(U,V))
+
+    return C_shear, C_slid, C_grav, C_float, C_mask
 
 
 # @tf.function(experimental_relax_shapes=True)
@@ -383,7 +395,7 @@ def UV_to_Y(params, U, V):
 def fieldin_to_X(params, fieldin):
     X = []
 
-    fieldin_dim = [0, 0, 1 * (params.iflo_dim_arrhenius == 3), 0, 0]
+    fieldin_dim = [0, 0, 1 * (params.iflo_dim_arrhenius == 3), 0, 0, 0]
 
     for f, s in zip(fieldin, fieldin_dim):
         if s == 0:
@@ -397,7 +409,7 @@ def fieldin_to_X(params, fieldin):
 def X_to_fieldin(params, X):
     i = 0
 
-    fieldin_dim = [0, 0, 1 * (params.iflo_dim_arrhenius == 3), 0, 0]
+    fieldin_dim = [0, 0, 1 * (params.iflo_dim_arrhenius == 3), 0, 0, 0]
 
     fieldin = []
 

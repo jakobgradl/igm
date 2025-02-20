@@ -190,12 +190,13 @@ def update_iceflow_emulator(params, state):
                     Y = state.iceflow_model(tf.pad(X[i:i+1, :, :, :], PAD, "CONSTANT"))[:,:Ny,:Nx,:]
                     
                     if iz>0:
-                        C_shear, C_slid, C_grav, C_float = iceflow_energy_XY(params, X[i : i + 1, iz:-iz, iz:-iz, :], Y[:, iz:-iz, iz:-iz, :])
+                        C_shear, C_slid, C_grav, C_float, C_mask = iceflow_energy_XY(params, X[i : i + 1, iz:-iz, iz:-iz, :], Y[:, iz:-iz, iz:-iz, :])
                     else:
-                        C_shear, C_slid, C_grav, C_float = iceflow_energy_XY(params, X[i : i + 1, :, :, :], Y[:, :, :, :])
+                        C_shear, C_slid, C_grav, C_float, C_mask = iceflow_energy_XY(params, X[i : i + 1, :, :, :], Y[:, :, :, :])
  
                     COST = tf.reduce_mean(C_shear) + tf.reduce_mean(C_slid) \
-                         + tf.reduce_mean(C_grav)  + tf.reduce_mean(C_float)
+                         + tf.reduce_mean(C_grav)  + tf.reduce_mean(C_float) \
+                         + 10 * tf.math.reduce_mean(C_mask)
                     
 
                     if state.it <= 0:
@@ -205,7 +206,7 @@ def update_iceflow_emulator(params, state):
                         print_freq = 25
 
                     if (epoch + 1) % print_freq == 0:
-                        print("---------- > ", tf.reduce_mean(C_shear).numpy(), tf.reduce_mean(C_slid).numpy(), tf.reduce_mean(C_grav).numpy(), tf.reduce_mean(C_float).numpy())
+                        print("---------- > ", tf.reduce_mean(C_shear).numpy(), tf.reduce_mean(C_slid).numpy(), tf.reduce_mean(C_grav).numpy(), tf.reduce_mean(C_float).numpy(), 10 * tf.math.reduce_mean(C_mask))
 
 #                    state.C_shear = tf.pad(C_shear[0],[[0,1],[0,1]],"CONSTANT")
 #                    state.C_slid  = tf.pad(C_slid[0],[[0,1],[0,1]],"CONSTANT")
