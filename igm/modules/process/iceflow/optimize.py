@@ -71,7 +71,8 @@ def optimize(params, state):
         state.dens_thkobs = tf.ones_like(state.thkobs)
         
     # force zero slidingco in the floating areas
-    state.slidingco = tf.where( state.icemaskobs == 2, 0.0, state.slidingco)
+    state.slidingco = tf.where( state.icemaskobs > 1, 0.0, state.slidingco)
+    state.slidingco = tf.where( state.icemaskobs < 0, 0.0, state.slidingco)
     
     # this will infer values for slidingco and convexity weight based on the ice velocity and an empirical relationship from test glaciers with thickness profiles
     if params.opti_infer_params:
