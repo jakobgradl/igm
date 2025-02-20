@@ -208,7 +208,7 @@ def optimize(params, state):
             if params.opti_force_max_velbar > 0.0:
                 cost["max_velbar"] = force_max_velbar(params, state)
   
-            cost_total = tf.reduce_sum(tf.convert_to_tensor(list(cost.values())))
+            # cost_total = tf.reduce_sum(tf.convert_to_tensor(list(cost.values())))
 
             # Here one allow retraining of the ice flow emaultor
             if params.opti_retrain_iceflow_model:
@@ -233,6 +233,11 @@ def optimize(params, state):
                 var_to_opti.append(vars()[f])
 
             # Compute gradient of COST w.r.t. X
+            # if i < 300:
+            #     cost_total = tf.reduce_sum(tf.convert_to_tensor(list(cost.values())))
+            # else:
+            #     cost_total = cost["glen"]
+            cost_total = tf.reduce_sum(tf.convert_to_tensor(list(cost.values())))
             grads = tf.Variable(t.gradient(cost_total, var_to_opti))
 
             # this serve to restict the optimization of controls to the mask
