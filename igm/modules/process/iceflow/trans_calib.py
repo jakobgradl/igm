@@ -21,7 +21,8 @@ from .optimize_params_cook import *
  
 def trans_calib(params, state):
 
-    load_tcal_obs_data(params, state)
+    if not params.tcal_input_file == "":
+        load_tcal_obs_data(params, state)
 
     ###### PERFORM CHECKS PRIOR OPTIMIZATIONS
 
