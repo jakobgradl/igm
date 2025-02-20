@@ -603,9 +603,10 @@ def misfit_usurf(params,state):
 # @tf.function()
 def cost_mass_conservation(params,state):
 
-    state.divflux_tcal_slopelim = compute_divflux_slope_limiter_tcal(
-            state.ubar_tcal, state.vbar_tcal, state.thk_tcal, state.dx, state.dx, state.dt_tcal, slope_type=params.tcal_thk_slope_type
-        ) # (nt-1,ny,nx)
+    ## deprecated
+    # state.divflux_tcal_slopelim = compute_divflux_slope_limiter_tcal(
+    #         state.ubar_tcal, state.vbar_tcal, state.thk_tcal, state.dx, state.dx, state.dt_tcal, slope_type=params.tcal_thk_slope_type
+    #     ) # (nt-1,ny,nx)
 
     masksmb = ~tf.math.is_nan(state.smbobs_tcal[:-1])
     maskice = state.icemaskobs_tcal[:-1] > 0.5
@@ -628,13 +629,12 @@ def cost_mass_conservation(params,state):
 
     # Centered difference on staggered grid
     # this checks consistency on dSdt
-    # this is same as dSdt_obs - dSdt_sim = 0
     return 0.5 * tf.reduce_mean(
         (
             (state.usurf_tcal[1:] - state.usurf_tcal[:-1])[ACT] / state.dt_tcal
             - (
                 0.5 * (state.smbobs_tcal[:-1][ACT] + state.smbobs_tcal[1:][ACT]) 
-                - 0.5 * (state.divflux_tcal_slopelim[:-1][ACT] + state.divflux_tcal_slopelim[1:][ACT])
+                - 0.5 * (state.divflux_tcal[:-1][ACT] + state.divflux_tcal[1:][ACT])
                 )
         )
     ) ** 2
@@ -1049,8 +1049,8 @@ def compute_divflux_slope_limiter_tcal(u, v, h, dx, dy, dt, slope_type):
     u = tf.concat( [u[:,:, 0:1], 0.5 * (u[:,:, :-1] + u[:,:, 1:]), u[:,:, -1:]], 2 )  # has shape (nt,ny,nx+1)
     v = tf.concat( [v[:,0:1, :], 0.5 * (v[:,:-1, :] + v[:,1:, :]), v[:,-1:, :]], 1 )  # has shape (nt,ny+1,nx)
 
-    Hx = tf.pad(h[:-1], [[0,0],[0,0],[2,2]], 'CONSTANT') # (nt,ny,nx+4)
-    Hy = tf.pad(h[:-1], [[0,0],[2,2],[0,0]], 'CONSTANT') # (nt,ny+4,nx)
+    Hx = tf.pad(h[:], [[0,0],[0,0],[2,2]], 'CONSTANT') # (nt,ny,nx+4)
+    Hy = tf.pad(h[:], [[0,0],[2,2],[0,0]], 'CONSTANT') # (nt,ny+4,nx)
     
     sigpx = (Hx[:,:,2:]-Hx[:,:,1:-1])/dx    # (nt,ny,nx+2)
     sigmx = (Hx[:,:,1:-1]-Hx[:,:,:-2])/dx   # (nt,ny,nx+2) 
