@@ -182,6 +182,7 @@ def optimize(params, state):
 
             # force zero thikness outisde the mask
             if "icemask" in params.opti_cost:
+                # GROUNDED = tf.where( (state.icemaskobs == 1) | (state.icemaskobs == 3), True, False)
                 cost["icemask"] = 10**10 * tf.math.reduce_mean( tf.where(state.icemaskobs > 0.5, 0.0, state.thk**2) )
 
             # Here one enforces non-negative ice thickness, and possibly zero-thickness in user-defined ice-free areas.
@@ -316,12 +317,16 @@ def misfit_velsurf(params,state):
     velsurf    = tf.stack([state.uvelsurf,    state.vvelsurf],    axis=-1) 
     velsurfobs = tf.stack([state.uvelsurfobs, state.vvelsurfobs], axis=-1)
 
+    icemaskstack = tf.stack([state.icemaskobs, state.icemaskobs], axis=-1)
+
     REL = tf.expand_dims( (tf.norm(velsurfobs,axis=-1) >= params.opti_velsurfobs_thr ) , axis=-1)
 
     ACT = ~tf.math.is_nan(velsurfobs) 
 
+    GROUNDED = tf.where( (icemaskstack == 1) | (icemaskstack == 3), True, False)
+    
     cost = 0.5 * tf.reduce_mean(
-           ( (velsurfobs[ACT & REL] - velsurf[ACT & REL]) / params.opti_velsurfobs_std  )** 2
+           ( (velsurfobs[ACT & REL & GROUNDED] - velsurf[ACT & REL & GROUNDED]) / params.opti_velsurfobs_std  )** 2
     )
 
     if params.opti_include_low_speed_term:
@@ -339,8 +344,10 @@ def misfit_thk(params,state):
 
     ACT = ~tf.math.is_nan(state.thkobs)
 
-    return 0.5 * tf.reduce_mean( state.dens_thkobs[ACT] * 
-        ((state.thkobs[ACT] - state.thk[ACT]) / params.opti_thkobs_std) ** 2
+    GROUNDED = tf.where( (state.icemaskobs == 1) | (state.icemaskobs == 3), True, False)
+    
+    return 0.5 * tf.reduce_mean( state.dens_thkobs[ACT & GROUNDED] * 
+        ((state.thkobs[ACT & GROUNDED] - state.thk[ACT & GROUNDED]) / params.opti_thkobs_std) ** 2
     )
 
 
@@ -351,8 +358,10 @@ def cost_divfluxfcz(params,state,i):
         state.ubar, state.vbar, state.thk, state.dx, state.dx, method=params.opti_divflux_method
     )
  
-    ACT = state.icemaskobs > 0.5
-    if i % 10 == 0:
+    # ACT = state.icemaskobs > 0.5
+    ACT = tf.where( (state.icemaskobs == 1) | (state.icemaskobs == 3), True, False)
+
+    # if i % 10 == 0:
         # his does not need to be comptued any iteration as this is expensive
         state.res = stats.linregress(
             state.usurf[ACT], divflux[ACT]
@@ -401,9 +410,13 @@ def misfit_usurf(params,state):
 
     ACT = state.icemaskobs > 0.5
 
+    MASK = ~tf.math.is_nan(state.usurfobs)
+
+    GROUNDED = tf.where( (state.icemaskobs == 1) | (state.icemaskobs == 3), True, False)
+    
     return 0.5 * tf.reduce_mean(
         (
-            (state.usurf[ACT] - state.usurfobs[ACT])
+            (state.usurf[ACT & MASK & GROUNDED] - state.usurfobs[ACT & MASK & GROUNDED])
             / params.opti_usurfobs_std
         )
         ** 2
