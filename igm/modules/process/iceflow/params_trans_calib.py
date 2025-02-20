@@ -5,7 +5,7 @@ def params_tcal(parser):
     parser.add_argument(
         "--tcal_input_file",
         type=str,
-        default="input.nc",
+        default="",
         help="NetCDF input data file",
     )
     parser.add_argument(
@@ -38,18 +38,18 @@ def params_tcal(parser):
         "--tcal_control_trans",
         type=list,
         default=["topg", "thk", "usurf", "slidingco", "arrhenius"],
-        help="List of control parameters"
+        help="List of TIME-VARYING control parameters"
     )
     parser.add_argument(
-        "--tcal_control_const", # ALL const parameters also need to be in tcal_control
+        "--tcal_control_const", 
         type=list,
-        default=["topg"], # for other paramters you need to add a cost function in trans_calib.py
-        help="Are any of the control parameters CONSTANT over time?"
+        default=["topg", "slidingco"], 
+        help="List of UNCHANGING control parameters"
     )
     parser.add_argument(
         "--tcal_cost",
         type=list,
-        default=["usurf", "velsurf", "thk", "icemask"],
+        default=["usurf", "velsurf", "thk", "icemask"], # NOTE: cost parameter is thk, but control parameter is topg !
         help="List of cost parameters"
     )
     parser.add_argument(
@@ -196,7 +196,7 @@ def params_tcal(parser):
         help="Confidence/STD of the flux divergence as input data for the optimization (if 0, divfluxobs_std field must be given)",
     )
     parser.add_argument(
-        "--tcal_dSdtobs_std",
+        "--tcal_dSobs_std",
         type=float,
         default=1.0,
         help="Confidence/STD of the surface elevation change"
