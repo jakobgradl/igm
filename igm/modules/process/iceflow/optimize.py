@@ -113,6 +113,7 @@ def optimize(params, state):
             
             if params.opti_step_size_decay < 1:
                 optimizer.lr = params.opti_step_size * (params.opti_step_size_decay ** (i / 100))
+                # opti_retrain.lr = params.iflo_retrain_emulator_lr * (params.opti_step_size_decay ** (i / 100))
 
             # is necessary to remember all operation to derive the gradients w.r.t. control variables
             for f in params.opti_control:
