@@ -212,10 +212,11 @@ def optimize(params, state):
 
             # Here one allow retraining of the ice flow emaultor
             if params.opti_retrain_iceflow_model:
-                C_shear, C_slid, C_grav, C_float = iceflow_energy_XY(params, X, Y)
+                C_shear, C_slid, C_grav, C_float, C_mask = iceflow_energy_XY(params, X, Y)
 
                 cost["glen"] = tf.reduce_mean(C_shear) + tf.reduce_mean(C_slid) \
-                             + tf.reduce_mean(C_grav)  + tf.reduce_mean(C_float)
+                             + tf.reduce_mean(C_grav)  + tf.reduce_mean(C_float) \
+                             + 10 * tf.math.reduce_mean(C_mask)
                 
                 grads = s.gradient(cost["glen"], state.iceflow_model.trainable_variables)
 
