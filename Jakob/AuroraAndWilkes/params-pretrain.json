@@ -1,0 +1,40 @@
+{
+  "modules_preproc": ["make_AuroraWilkes_rect"],
+  "modules_process": ["iceflow","time","thk"],
+  "modules_postproc": [],
+
+  "iflo_run_data_assimilation": false,
+  "iflo_run_pretraining": false,
+
+  "iflo_type": "emulated",
+  "iflo_pretrained_emulator" : false,
+  "iflo_save_model" : true,
+
+  "iflo_init_slidingco"     : 0.045,
+  "iflo_init_arrhenius" : 40,
+  "iflo_cf_cond" : true,
+  "iflo_cf_eswn" : ["E","N"],
+  "iflo_Nz" : 15,
+  "iflo_vert_spacing" : 3,
+  "iflo_ice_density": 920,
+  
+  "iflo_new_friction_param": true,
+
+  "iflo_retrain_emulator_freq" : 1,
+#    "iflo_retrain_emulator_lr" : 0.00002,
+  "iflo_retrain_emulator_lr" : 0.0001,
+  "iflo_retrain_emulator_nbit_init" : 2000,
+  "iflo_retrain_emulator_nbit": 2,
+  # "iflo_retrain_emulator_framesizemax": 3000,
+  #"iflo_multiple_window_size": 0,
+  "iflo_force_max_velbar": 2500.0,
+
+  "iflo_network": "cnn",
+  "iflo_activation": "LeakyReLU",
+  "iflo_optimizer_emulator": "Adam",
+
+  "time_start": 0.0,
+  "time_end": 1.0
+    
+  }
+  
