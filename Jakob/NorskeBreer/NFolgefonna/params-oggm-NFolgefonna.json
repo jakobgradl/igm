@@ -1,0 +1,43 @@
+{
+  "modules_preproc": ["oggm_shop", "make_NFolgefonna"],
+  "modules_process": ["iceflow"],
+  "modules_postproc": [],
+  "iflo_run_data_assimilation": true,
+  "iflo_run_pretraining": false,
+
+  "iflo_exclude_borders" : 10,
+
+  "oggm_RGI_ID": "RGI2000-v7.0-C-08-02200",
+  "oggm_RGI_version": 7,
+  "oggm_RGI_product": "C",
+  "oggm_remove_RGI_folder": false,
+
+  "opti_control": ["thk", "usurf", "slidingco", "arrhenius"],
+  "opti_cost": ["velsurf", "thk", "usurf", "icemask", "mass_cons"],
+
+  "oggm_incl_glathida"			: false,
+  "oggm_thk_source": "millan_ice_thickness",
+  "opti_usurfobs_std"			: 0.3,
+  "opti_velsurfobs_std" 	: 0.25,
+  "opti_thkobs_std"			  : 1, 
+  "opti_divfluxobs_std"   : 0.1,
+
+  "opti_step_size": 0.5,
+
+  "opti_init_zero_thk" : true,
+  "opti_force_zero_sum_divflux" : false,
+  
+  "opti_regu_param_arrhenius": 0, 
+  "opti_regu_param_slidingco": 1.0e4,
+  "opti_smooth_anisotropy_factor_sl": 0.2,
+  "opti_regu_param_thk": 1,
+  "opti_smooth_anisotropy_factor"	: 0.2,
+  "opti_convexity_weight": 500,
+  "opti_convexity_power": 1.3,
+
+  "opti_nbitmax"			: 2000,
+  "iflo_init_slidingco"      		: 0.045,
+  "opti_vars_to_save": ["topg", "usurf", "usurfdiff", "thk", "thkdiff", "velsurf_mag", "velsurfdiff_mag", "divflux", "slidingco", "arrhenius"],
+  "opti_save_iterat_in_ncdf": false,
+  "opti_output_freq": 100
+}
