@@ -1,0 +1,59 @@
+{
+  "modules_preproc": ["load_ncdf",
+                     "make_synthetic_thinning"],
+  "modules_process": ["smb_simple",
+                      "iceflow",
+                      "time",
+                      "thk",
+                      "vert_flow"
+                    ],
+  "modules_postproc": ["write_ncdf",
+                       "print_info",
+                       "print_comp"],
+
+  "smb_simple_array": [
+                        ["time", "gradabl", "gradacc", "ela", "accmax"],
+                        [ 0,      0.0045,     0.0035,  2850,      2.0],
+                        [ 1000,      0.0045,     0.0035,  2850,      2.0]
+                      ],
+
+  "lncd_input_file": "01-inv-oggm/geology-optimized.nc",
+
+  "iflo_type": "emulated",
+  "iflo_pretrained_emulator": true,
+  "iflo_emulator": "iceflow-model",
+  "iflo_save_model": false,
+  
+#    "iflo_init_slidingco": 0.0,
+  "iflo_exp_glen": 3,
+  "iflo_exp_weertman": 3,
+  "iflo_gravity_cst": 9.81,
+  "iflo_ice_density": 910,
+  "iflo_new_friction_param": true,
+
+  "iflo_exclude_borders": 10,
+
+  "iflo_Nz" : 10,
+  "iflo_vert_spacing": 4,
+  "iflo_dim_arrhenius": 2,
+
+  "iflo_retrain_emulator_freq" : 1,
+#    "iflo_retrain_emulator_lr" : 0.00002,
+  "iflo_retrain_emulator_lr" : 0.0001,
+  "iflo_retrain_emulator_nbit_init" : 100,
+  "iflo_retrain_emulator_nbit": 5,
+  "iflo_retrain_emulator_framesizemax": 3000,
+  "iflo_multiple_window_size": 0,
+  "iflo_force_max_velbar": 2000.0,
+
+  "iflo_network": "cnn",
+  "iflo_activation": "LeakyReLU",
+  "iflo_optimizer_emulator": "Adam",
+
+  "time_start": 0.0,
+  "time_end": 30.0,
+  "time_save": 1.0,
+
+  "wncd_vars_to_save" : ["topg", "usurf", "thk", "smb", "velsurf_mag", "uvelsurf", "vvelsurf", "divflux", "slidingco", "arrhenius", "icemask"]
+}
+

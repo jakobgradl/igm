@@ -1,0 +1,56 @@
+{
+  "modules_preproc": ["load_ncdf"],
+  "modules_process": ["iceflow"],
+  "modules_postproc": [],
+  "iflo_run_transient_calibration": true,
+  "iflo_run_pretraining": false,
+
+  "iflo_pretrained_emulator": true,
+  "iflo_emulator": "iceflow-model",
+  "tcal_retrain_iceflow_model": true,
+
+  "iflo_exclude_borders": 10,
+
+  "lncd_input_file": "03-thinning/output-nothinning-tres1.nc",
+  "lncd_time_load": 15,
+  "tcal_input_file": "03-thinning/output-nothinning-tres1.nc",
+  "tcal_times": [14,15],
+  "tcal_obs_list": ["thk", "topg", "uvelsurf", "vvelsurf", "usurf", "smb"],
+
+
+  #"oggm_RGI_ID": "RGI2000-v7.0-G-11-01706", 
+  #"RGI60-11.01238",
+  #"oggm_RGI_version": 6,
+  #"oggm_remove_RGI_folder": false,
+
+  "tcal_control_trans": [],
+  "tcal_control_const": ["slidingco"],
+  "tcal_cost": ["velsurf"],
+  "tcal_total_cost_with_physics": false,
+
+  "tcal_init_zero_thk": false,
+  "tcal_init_const_sl": true,
+  "tcal_uniformize_thkobs": false,
+
+  "tcal_scaling_topg": 2.0,
+
+  "tcal_usurfobs_std"			: 0.3,
+  "tcal_velsurfobs_std" 	: 0.25,
+  "tcal_thkobs_std"			  : 1, 
+  "tcal_divfluxobs_std"   : 0.1,
+  
+  "tcal_regu_param_arrhenius": 0, 
+  "tcal_regu_param_slidingco": 0,
+  "tcal_smooth_anisotropy_factor_sl": 0.2,
+  "tcal_regu_param_thk": 1,
+  "tcal_smooth_anisotropy_factor"	: 0.2,
+  "tcal_convexity_weight": 500,
+  "tcal_convexity_power": 1.3,
+
+  "tcal_step_size": 1.0,
+  "tcal_nbitmax"			: 300,
+  "iflo_init_slidingco"      		: 0.045,
+  "tcal_vars_to_save": ["usurf", "usurfdiff", "thk", "thkdiff", "topg", "topgdiff", "velsurf_mag", "velsurfdiff_mag", "uvelsurf", "vvelsurf", "divflux", "slidingco", "icemask"],
+  "tcal_save_iterat_in_ncdf": false,
+  "tcal_output_freq": 20
+}

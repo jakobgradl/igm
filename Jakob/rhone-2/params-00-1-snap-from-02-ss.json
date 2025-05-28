@@ -1,0 +1,52 @@
+{
+  "modules_preproc": ["load_ncdf"],
+  "modules_process": ["iceflow"],
+  "modules_postproc": [],
+  "iflo_run_data_assimilation": true,
+  "iflo_run_pretraining": false,
+
+  "iflo_pretrained_emulator": true,
+  "iflo_emulator": "iceflow-model",
+
+  "iflo_exclude_borders": 10,
+
+  "lncd_input_file": "02-fwd/output-ela2850-acc0035-abl0045.nc",
+  "opti_load_from_sim": true,
+  "lncd_time_load": 5000,
+
+
+  #"oggm_RGI_ID": "RGI2000-v7.0-G-11-01706", 
+  #"RGI60-11.01238",
+  #"oggm_RGI_version": 6,
+  #"oggm_remove_RGI_folder": false,
+
+#  "opti_control": ["usurf", "slidingco"],
+#  "opti_cost": ["usurf", "velsurf"],
+
+  "opti_control": ["slidingco"],
+  "opti_cost": ["velsurf"],
+
+  "opti_retrain_iceflow_model": true,
+  "opti_init_const_slid": true,
+
+  #"oggm_incl_glathida"			: true,
+  #"oggm_thk_source": "millan_ice_thickness",
+  "opti_usurfobs_std"			: 0.3,
+  "opti_velsurfobs_std" 	: 0.25,
+  "opti_thkobs_std"			  : 1, 
+  "opti_divfluxobs_std"   : 0.1,
+  
+  "opti_regu_param_arrhenius": 0, 
+  "opti_regu_param_slidingco": 0,
+  "opti_smooth_anisotropy_factor_sl": 0.2,
+  "opti_regu_param_thk": 1,
+  "opti_smooth_anisotropy_factor"	: 0.2,
+  "opti_convexity_weight": 500,
+  "opti_convexity_power": 1.3,
+
+  "opti_nbitmax"			: 500,
+  "iflo_init_slidingco"      		: 0.045,
+  "opti_vars_to_save": ["usurf", "usurfdiff", "thk", "thkdiff", "velsurf_mag", "velsurfdiff_mag", "uvelsurf", "vvelsurf", "divflux", "slidingco", "arrhenius", "icemask"],
+  "opti_save_iterat_in_ncdf": true,
+  "opti_output_freq": 100
+}
