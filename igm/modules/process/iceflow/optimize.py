@@ -97,6 +97,9 @@ def optimize(params, state):
 
     state.tcomp_optimize = []
 
+    # for Rhone experiments
+    state.thk = state.usurf - state.topg
+
     # this thing is outdated with using iflo_new_friction_param default as we use scaling of one.
     sc = {}
     sc["thk"] = params.opti_scaling_thk
