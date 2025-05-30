@@ -127,6 +127,10 @@ def trans_calib(params, state):
                 axis=0
             )
 
+    # FOR RHONE EXPERIMENTS
+    state.usurf_tcal = state.usurfobs_tcal
+    state.thk_tcal = state.usurf_tcal - state.topg_tcal
+
     if params.tcal_init_const_sl:
         state.slidingco_tcal = tf.ones_like(state.slidingco_tcal) * 0.045
 
