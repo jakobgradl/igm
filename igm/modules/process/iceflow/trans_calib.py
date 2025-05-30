@@ -436,6 +436,9 @@ def trans_calib(params, state):
             # get back optimized variables in the pool of state.variables
             if "topg" in params.tcal_control:
                 state.usurf_tcal = tf.where(state.icemaskobs_tcal > 0.5, state.usurf_tcal, state.topg_tcal)
+
+            if any(["topg" in params.tcal_control, "usurf" in params.tcal_control]):
+                state.thk_tcal = state.usurf_tcal - state.topg_tcal
             # if "topg" in params.tcal_control_const:
             #     state.topg_tcal = tf.expand_dims(tf.where(
             #         tf.math.reduce_min(state.icemaskobs_tcal, axis=0) == 0.0, 
