@@ -276,3 +276,10 @@ def params_optimize(parser):
         default=0.0,
         help="Penalize flow velocities above a threshold"
     )
+
+    parser.add_argument(
+        "--opti_init_const_slid",
+        type=str2bool,
+        default=False,
+        help="start slidingco optimisation from a single-value field"
+    )

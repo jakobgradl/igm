@@ -60,6 +60,9 @@ def optimize(params, state):
 
     if params.opti_init_zero_thk:
         state.thk = state.thk*0.0
+
+    if params.opti_init_const_slid:
+        state.slidingco = tf.ones_like(state.thk) * 0.045
         
     # this is a density matrix that will be used to weight the cost function
     if params.opti_uniformize_thkobs:
