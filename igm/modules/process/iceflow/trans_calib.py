@@ -474,7 +474,7 @@ def trans_calib(params, state):
 	# for final iteration
     i = params.tcal_nbitmax
 
-    print_costs(params, state, cost, i)
+    # print_costs(params, state, cost, i)
 
     # if i % params.tcal_output_freq == 0:
     #     if params.tcal_plot2d:
@@ -491,7 +491,7 @@ def trans_calib(params, state):
     if not params.tcal_save_result_in_ncdf=="":
         output_ncdf_tcal_final(params, state)
 
-    plot_cost_functions() 
+    # plot_cost_functions() 
 
     plt.close("all")
 
