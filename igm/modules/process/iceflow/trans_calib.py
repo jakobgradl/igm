@@ -619,17 +619,9 @@ def cost_mass_conservation(params,state):
 
     ACT = np.logical_and(maskthk,masksmbice)
 
-    # # Forward difference on usurf
-    # # this checks consistency on absolute surface change
-    # return 0.5 * tf.reduce_mean(
-    #     (
-    #         (state.usurf_tcal[1:] - state.usurf_tcal[:-1])[ACT]
-            # - state.dt_tcal * (state.smbobs_tcal[:-1][ACT] - state.divflux_tcal_slopelim[:-1][ACT])
-    #     )
-    # ) ** 2
-
     # Centered difference on staggered grid
     # this checks consistency on dSdt
+    # compare gradients:
     return 0.5 * tf.reduce_mean(
         (
             (state.usurf_tcal[1:] - state.usurf_tcal[:-1])[ACT] / state.dt_tcal
@@ -637,8 +629,19 @@ def cost_mass_conservation(params,state):
                 0.5 * (state.smbobs_tcal[:-1][ACT] + state.smbobs_tcal[1:][ACT]) 
                 - 0.5 * (state.divflux_tcal[:-1][ACT] + state.divflux_tcal[1:][ACT])
                 )
-        )
-    ) ** 2
+        ) ** 2
+    ) #** 2
+
+    # # compare absolute changes: (that's exactly the same as the one above tho...)
+    # return 0.5 * tf.reduce_mean(
+    #     (
+    #         (state.usurf_tcal[1:] - state.usurf_tcal[:-1])[ACT]
+    #         - state.dt_tcal * (
+    #             0.5 * (state.smbobs_tcal[:-1][ACT] + state.smbobs_tcal[1:][ACT]) 
+    #             - 0.5 * (state.divflux_tcal[:-1][ACT] + state.divflux_tcal[1:][ACT])
+    #             )
+    #     ) ** 2
+    # ) 
 
     # make sure the produced velocity field is consistent with the enforced surface change
     # dSdt is constrained via misfit_usurf
