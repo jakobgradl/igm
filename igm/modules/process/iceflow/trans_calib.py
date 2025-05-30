@@ -366,10 +366,10 @@ def trans_calib(params, state):
             if params.tcal_retrain_iceflow_model: # and (i > (params.tcal_nbitmax / 3)):
                 for iter in range(len(params.tcal_times)):
                     
-                    C_shear, C_slid, C_grav, C_float = iceflow_energy_XY(params, X[iter], Y[iter])
+                    C_shear, C_slid, C_grav, C_float, C_mask = iceflow_energy_XY(params, X[iter], Y[iter])
 
                     # cost["glen"] += 10**3 * (tf.reduce_mean(C_shear) + tf.reduce_mean(C_slid) + tf.reduce_mean(C_grav)  + tf.reduce_mean(C_float))**2
-                    cost["glen"] += tf.reduce_mean(C_shear) + tf.reduce_mean(C_slid) + tf.reduce_mean(C_grav)  + tf.reduce_mean(C_float)
+                    cost["glen"] += tf.reduce_mean(C_shear) + tf.reduce_mean(C_slid) + tf.reduce_mean(C_grav)  + tf.reduce_mean(C_float) + 10 * tf.math.reduce_mean(C_mask)
 
                 cost["glen"] /= len(params.tcal_times)  
                 grads = s.gradient(cost["glen"], state.iceflow_model.trainable_variables)
