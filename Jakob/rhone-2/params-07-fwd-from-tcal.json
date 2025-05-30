@@ -17,7 +17,8 @@
                         [ 1000,      0.0045,     0.0035,  2850,      2.0]
                       ],
 
-  "lncd_input_file": "05-inv-tcal/withNNretrain-noglencost/geology-tcal-4steps-interval5.nc",
+#  "lncd_input_file": "05-inv-tcal/withNNretrain-noglencost/geology-tcal-4steps-interval5.nc",
+  "lncd_input_file": "05-inv-tcal/withNNretrain-noglencost-correctedMCcost/geology-tcal-5steps-interval1-centeredDF.nc",
   "lncd_time_load": 15,
 
   "iflo_type": "emulated",

@@ -22,7 +22,8 @@
 #  "tcal_times": [10,15],
 #  "tcal_times": [14,15],
 #  "tcal_times": [6,7,8,9,10,11,12,13,14,15],
-  "tcal_times": [0,5,10,15],
+#  "tcal_times": [0,5,10,15],
+  "tcal_times": [11,12,13,14,15],
 #  "tcal_times": [10.5,11,11.5,12,12.5,13,13.5,14,14.5,15],
 #  "tcal_times": [6,6.5,7,7.5,8,8.5,9,9.5,10,10.5,11,11.5,12,12.5,13,13.5,14,14.5,15],
   "tcal_obs_list": ["thk", "topg", "uvelsurf", "vvelsurf", "usurf", "smb"],
@@ -33,9 +34,9 @@
   #"oggm_RGI_version": 6,
   #"oggm_remove_RGI_folder": false,
 
-  "tcal_control_trans": ["usurf"],
+  "tcal_control_trans": [],
   "tcal_control_const": ["slidingco"],
-  "tcal_cost": ["usurf","velsurf"],
+  "tcal_cost": ["velsurf"],
   "tcal_total_cost_with_physics": false,
 
   "tcal_init_zero_thk": false,
@@ -48,6 +49,8 @@
   "tcal_velsurfobs_std" 	: 0.25,
   "tcal_thkobs_std"			  : 1, 
   "tcal_divfluxobs_std"   : 0.1,
+
+  "tcal_divflux_method": "centered",
   
   "tcal_regu_param_arrhenius": 0, 
   "tcal_regu_param_slidingco": 0,
