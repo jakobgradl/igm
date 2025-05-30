@@ -267,6 +267,9 @@ def optimize(params, state):
                 state.thk = tf.where(state.icemaskobs > 0.5, state.thk, 0)
 #                state.thk = tf.where(state.thk < 0.01, 0, state.thk)
 
+            if ("usurf" in params.opti_control) and ("thk" not in params.opti_control):
+                state.thk = state.usurf - state.topg
+
             state.divflux = compute_divflux(
                 state.ubar, state.vbar, state.thk, state.dx, state.dx, method=params.opti_divflux_method
             )
