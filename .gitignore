@@ -40,3 +40,6 @@ thk_MG
 energy_iceflow_DG.py
 emulate_DG.py
 optimize_fw.py
+
+RGI2000-v7*/
+*.nc
