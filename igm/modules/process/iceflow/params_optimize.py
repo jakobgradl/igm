@@ -283,3 +283,29 @@ def params_optimize(parser):
         default=False,
         help="start slidingco optimisation from a single-value field"
     )
+
+    # FNN params
+    parser.add_argument(
+        "opti_fnn_layers",
+        type=int,
+        default=5,
+        help="number of layers in fnn"
+    )
+    parser.add_argument(
+        "opti_fnn_neurons",
+        type=int,
+        default=40,
+        help="number of neurons per layer in fnn"
+    )
+    parser.add_argument(
+        "opti_fnn_inputs",
+        type=list,
+        default=["x","y"],
+        help="input features for fnn"
+    )
+    parser.add_argument(
+        "opti_fnn_output",
+        type=list,
+        default=["slidingco", "usurf", "vel"],
+        help="output features for fnn"
+    )

@@ -85,6 +85,8 @@ def initialize_iceflow_emulator(params,state):
             state.iceflow_model = cnn(params, nb_inputs, nb_outputs)
         elif params.iflo_network=='unet':
             state.iceflow_model = unet(params, nb_inputs, nb_outputs)
+        elif params.iflo_network=='fnn':
+            state.iceflow_model = fnn(params)
 
     # direct_name = 'pinnbp_10_4_cnn_16_32_2_1'        
     # dirpath = importlib_resources.files(emulators).joinpath(direct_name)

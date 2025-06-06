@@ -68,3 +68,33 @@ def unet(params, nb_inputs, nb_outputs):
         unpool=False,
         name="unet",
     )
+
+
+
+def fnn(params):
+    """
+    Build a feed-forward neural network for the inversion
+    """
+
+    nb_layers = 5 #params.opti_fnn_layers
+    nb_neurons = 30 #params.opti_fnn_neurons
+    activation = "leaky_relu"
+
+    nb_inputs = len(params.opti_fnn_inputs)
+    # nb_outputs = 22 # for the moment, actually > len(params.opti_control) + nz*2 oder so
+    nb_outputs = len(params.opti_fnn_outputs)
+    if "vel" in params.opti_fnn_outputs:
+        nb_outputs -= 1
+        nb_outputs += 2 * params.iflo_Nz
+    # nb_inputs > 2 for x,y
+    # nb_outputs > 22 for usurf, slidingco, u(z1), u(z2),..., v(z1), v(z2),...
+
+    inputs = tf.keras.layers.Input(shape=[None, None, nb_inputs]) # state.dY and state.dX stacked on top of each other shape(y,x,2)
+    nn = inputs
+
+    for i in range(int(nb_layers)):
+        nn = tf.keras.layers.Dense(nb_neurons, activation=activation)(nn)
+
+    outputs = tf.keras.layers.Dense(nb_outputs, activation=activation)(nn)
+
+    return tf.keras.models.Model(inputs=inputs, outputs=outputs)
