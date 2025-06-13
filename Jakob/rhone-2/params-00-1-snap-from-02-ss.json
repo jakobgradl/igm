@@ -5,8 +5,15 @@
   "iflo_run_data_assimilation": true,
   "iflo_run_pretraining": false,
 
-  "iflo_pretrained_emulator": true,
+  "iflo_pretrained_emulator": false,
   "iflo_emulator": "iceflow-model",
+
+  "opti_with_fnn": true,
+  "iflo_network": "fnn",
+  "opti_step_size": 0.0001,
+  "opti_step_size_decay": 0.99,
+  "iflo_save_model": true,
+  "iflo_save_model_dir": "iceflow-model-fnn",
 
   "iflo_exclude_borders": 10,
 
@@ -20,11 +27,14 @@
   #"oggm_RGI_version": 6,
   #"oggm_remove_RGI_folder": false,
 
-#  "opti_control": ["usurf", "slidingco"],
-#  "opti_cost": ["usurf", "velsurf"],
+  "opti_control": ["usurf", "slidingco"],
+  "opti_cost": ["usurf", "velsurf"],
 
-  "opti_control": ["slidingco"],
-  "opti_cost": ["velsurf"],
+#  "opti_control": ["slidingco"],
+#  "opti_cost": ["velsurf"],
+
+  "opti_fnn_inputs": ["X","Y"],
+  "opti_fnn_outputs": ["usurf", "slidingco", "vel"],
 
   "opti_retrain_iceflow_model": true,
   "opti_init_const_slid": true,
@@ -44,9 +54,9 @@
   "opti_convexity_weight": 500,
   "opti_convexity_power": 1.3,
 
-  "opti_nbitmax"			: 500,
+  "opti_nbitmax"			: 50000,
   "iflo_init_slidingco"      		: 0.045,
-  "opti_vars_to_save": ["usurf", "usurfdiff", "thk", "thkdiff", "velsurf_mag", "velsurfdiff_mag", "uvelsurf", "vvelsurf", "divflux", "slidingco", "arrhenius", "icemask"],
-  "opti_save_iterat_in_ncdf": true,
-  "opti_output_freq": 100
+  "opti_vars_to_save": ["usurf", "usurfdiff", "thk", "velsurf_mag", "velsurfdiff_mag", "velbase_mag", "divflux", "slidingco", "arrhenius"],
+  "opti_save_iterat_in_ncdf": false,
+  "opti_output_freq": 50
 }
