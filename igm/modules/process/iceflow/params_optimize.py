@@ -286,25 +286,31 @@ def params_optimize(parser):
 
     # FNN params
     parser.add_argument(
-        "opti_fnn_layers",
+        "--opti_with_fnn",
+        type=str2bool,
+        default=False,
+        help="use feed-forward network for the inversion"
+    )
+    parser.add_argument(
+        "--opti_fnn_layers",
         type=int,
         default=5,
         help="number of layers in fnn"
     )
     parser.add_argument(
-        "opti_fnn_neurons",
+        "--opti_fnn_neurons",
         type=int,
         default=40,
         help="number of neurons per layer in fnn"
     )
     parser.add_argument(
-        "opti_fnn_inputs",
+        "--opti_fnn_inputs",
         type=list,
-        default=["x","y"],
+        default=["X","Y"],
         help="input features for fnn"
     )
     parser.add_argument(
-        "opti_fnn_output",
+        "--opti_fnn_outputs",
         type=list,
         default=["slidingco", "usurf", "vel"],
         help="output features for fnn"

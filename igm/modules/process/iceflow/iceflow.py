@@ -95,7 +95,7 @@ def initialize(params, state):
     # padding is necessary when using U-net emulator
     state.PAD = compute_PAD(params,state.thk.shape[1],state.thk.shape[0])
 
-    if not params.iflo_type == "solved":
+    if not params.iflo_type == "solved" and not params.opti_with_fnn:
         update_iceflow_emulated(params, state)
         
     # Currently it is not supported to have the two working simulatanoutly
@@ -103,8 +103,11 @@ def initialize(params, state):
 
     if params.iflo_run_data_assimilation:
         state.it = -1
-        update_iceflow_emulator(params, state)
-        optimize(params, state)
+        if params.opti_with_fnn:
+            optimize_fnn(params, state)
+        else:
+            update_iceflow_emulator(params, state)
+            optimize(params, state)
 
     if params.iflo_run_transient_calibration:
         state.it = -1
